@@ -1,0 +1,256 @@
+Dokumentace pro Řešení Validace Vozů na Základě Globálních a Lokálních Pravidel
+
+Business Popis
+
+Cíl:
+
+Tento systém slouží k validaci parametrů vozů na základě definovaných pravidel. Existují dva typy pravidel:
+
+Globální pravidla – používají se k určení, zda vůz odpovídá požadavkům pro zpracování leadů. Pokud pravidlo neodpovídá, akce je "NoInterest".
+
+Lokální pravidla – slouží k podpoře call centra, kde se vrací specifická akce a zpráva pro operátora.
+
+Základní funkce:
+
+Validace vozu podle parametrů.
+
+Rozdělení logiky pro globální a lokální pravidla.
+
+Vracení akce a zprávy dle typu pravidla.
+
+Seznam Parametrů Vozů pro Validaci
+
+Parametry, které budou kontrolovány:
+
+Make (Značka): Např. Škoda, VW, Renault.
+
+Model: Specifický model vozu (pokud je relevantní).
+
+MakeYear (Rok výroby): Rok výroby vozu, např. >= 2004.
+
+Tachometer (Stav tachometru): Maximální počet najetých kilometrů, např. <= 300 000 km.
+
+FuelType (Typ paliva): Např. Diesel, Elektromotor, Hybrid.
+
+FuelType NOT: Zakázaný typ paliva, např. CNG.
+
+Price (Cena): Cenový rozsah vozu, např. >= 50 000 & <= 500 000.
+
+OpportunitySource (Zdroj příležitosti): Webform, Ticking, SMS, Any.
+
+Country (Země): Země, kde se vůz nachází, např. CZ, SK, PL.
+
+Customer (Zákazník): Typ zákazníka, např. Private, Company (volitelné).
+
+Engine (Motor): Specifikace motoru, např. 1.2 Tce.
+
+Power (Výkon): Výkon motoru v kW, např. 85, 90.
+
+Technická Řešení
+
+Datový Model
+
+1. Pravidla (Rules)
+
+Sloupec
+
+Typ
+
+Popis
+
+RuleID
+
+INT (Primární Klíč)
+
+Unikátní identifikátor pravidla.
+
+RuleName
+
+VARCHAR
+
+Skutečný název zadaný uživatelem při vytváření nebo aktualizaci pravidla.
+
+RuleType
+
+ENUM
+
+Určuje typ pravidla: "Global" nebo "Local."
+
+ValidUntil
+
+DATETIME (NULLABLE)
+
+Datum/čas, kdy pravidlo vyprší; NULL znamená, že nemá datum expirace.
+
+Status
+
+ENUM
+
+Stav pravidla: "Active," "Inactive" nebo "Draft."
+
+Action
+
+ENUM
+
+Definuje akci spojenou s pravidlem: POZVI - NESLIBUJ, POZVI SWAPEM - NESLIBUJ, NEZVI - NECHCEME.
+
+ActionMessage
+
+TEXT
+
+Detailní zpráva spojená s akcí, která se zobrazí na frontendu, když je pravidlo spuštěno.
+
+Customer
+
+ENUM
+
+Určuje, na koho se pravidlo vztahuje: Private, Company, nebo Any (vztahuje se na oba typy).
+
+Country
+
+ENUM
+
+Seznam zemí, na které se pravidlo vztahuje: CZ, SK, PL, nebo Any.
+
+OpportunitySource
+
+ENUM
+
+Zdroj příležitosti: Ticking, Webform, SMS, nebo Any.
+
+CreatedBy
+
+INT
+
+ID zaměstnance, který pravidlo vytvořil (na frontendu se překládá na jméno).
+
+LastModifiedBy
+
+INT
+
+ID zaměstnance, který naposledy upravil pravidlo.
+
+LastModifiedDate
+
+DATETIME
+
+Datum a čas poslední úpravy.
+
+2. Skupiny Podmínek (ConditionGroups)
+
+Sloupec
+
+Typ
+
+Popis
+
+ConditionGroupID
+
+INT (Primární Klíč)
+
+Unikátní identifikátor skupiny podmínek.
+
+RuleID
+
+INT (Cizí Klíč)
+
+Odkazuje na pravidlo v tabulce Rules.
+
+Description
+
+VARCHAR
+
+Popis skupiny podmínek (např. "Podmínky pro Škoda, VW").
+
+3. Podmínky (Conditions)
+
+Sloupec
+
+Typ
+
+Popis
+
+ConditionID
+
+INT (Primární Klíč)
+
+Unikátní identifikátor podmínky.
+
+ConditionGroupID
+
+INT (Cizí Klíč)
+
+Odkazuje na tabulku ConditionGroups.
+
+Parameter
+
+VARCHAR
+
+Parametr (např. Make, Price).
+
+Operator
+
+ENUM
+
+Logický operátor: =, !=, IN, NOT IN, >, <, <=, >=, BETWEEN.
+
+Value
+
+VARCHAR
+
+Hodnota podmínky (např. Škoda, VW nebo <= 300000).
+
+API Specifikace
+
+1. Endpoint: Validace Vozu
+
+Metoda: POST /api/rules/validate
+
+Požadavek (Request Body):
+
+{
+  "ruleType": "Global",
+  "country": "CZ",
+  "opportunitySource": "Webform",
+  "customer": "Private",
+  "make": "Škoda",
+  "makeYear": 2010,
+  "tachometer": 280000,
+  "fuelType": "Diesel",
+  "price": 450000
+}
+
+Odpověd (Response):
+
+Globální pravidlo nesplněno:
+
+{
+  "isMatch": true,
+  "action": "NoInterest",
+  "actionMessage": "Vůz nesplňuje parametry filtru pro zpracování leadu."
+}
+
+Globální pravidlo splněno:
+
+{
+  "isMatch": false,
+  "action": null,
+  "actionMessage": "Vůz splňuje parametry a je akceptovatelný."
+}
+
+Lokální pravidlo splněno:
+
+{
+  "isMatch": true,
+  "action": "POZVI - NESLIBUJ",
+  "actionMessage": "Problémový motor s vysokým budíkem. Pozvi na dohodu max do 15h."
+}
+
+Další Požadavky
+
+Audit: Systém by měl ukládat historii validace (vstupní parametry, odpověď, čas).
+
+Správa pravidel: Admin rozhraní pro tvorbu a úpravu pravidel.
+
+Škálovatelnost: Podpora nových parametrů bez změny struktury.
+
