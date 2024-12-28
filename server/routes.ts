@@ -18,16 +18,6 @@ export function registerRoutes(app: Express): Server {
 
   app.get("/api/rules/:id", async (req, res) => {
     try {
-      const result = await db
-        .select()
-        .from(rules)
-        .where(eq(rules.ruleId, parseInt(req.params.id)));
-
-      if (!result.length) {
-        return res.status(404).json({ error: "Rule not found" });
-      }
-
-      // Fetch associated condition groups and conditions
       const ruleWithConditions = await db.query.rules.findFirst({
         where: eq(rules.ruleId, parseInt(req.params.id)),
         with: {
@@ -38,6 +28,10 @@ export function registerRoutes(app: Express): Server {
           }
         }
       });
+
+      if (!ruleWithConditions) {
+        return res.status(404).json({ error: "Rule not found" });
+      }
 
       res.json(ruleWithConditions);
     } catch (error) {
@@ -87,72 +81,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Condition Groups
-  app.get("/api/rules/:ruleId/condition-groups", async (req, res) => {
-    try {
-      const groups = await db
-        .select()
-        .from(conditionGroups)
-        .where(eq(conditionGroups.ruleId, parseInt(req.params.ruleId)));
-
-      res.json(groups);
-    } catch (error) {
-      console.error('Error fetching condition groups:', error);
-      res.status(500).json({ error: "Failed to fetch condition groups" });
-    }
-  });
-
-  app.post("/api/rules/:ruleId/condition-groups", async (req, res) => {
-    try {
-      const [group] = await db
-        .insert(conditionGroups)
-        .values({
-          ruleId: parseInt(req.params.ruleId),
-          description: req.body.description
-        })
-        .returning();
-
-      res.status(201).json(group);
-    } catch (error) {
-      console.error('Error creating condition group:', error);
-      res.status(500).json({ error: "Failed to create condition group" });
-    }
-  });
-
-  // Conditions
-  app.get("/api/condition-groups/:groupId/conditions", async (req, res) => {
-    try {
-      const groupConditions = await db
-        .select()
-        .from(conditions)
-        .where(eq(conditions.conditionGroupId, parseInt(req.params.groupId)));
-
-      res.json(groupConditions);
-    } catch (error) {
-      console.error('Error fetching conditions:', error);
-      res.status(500).json({ error: "Failed to fetch conditions" });
-    }
-  });
-
-  app.post("/api/condition-groups/:groupId/conditions", async (req, res) => {
-    try {
-      const [condition] = await db
-        .insert(conditions)
-        .values({
-          conditionGroupId: parseInt(req.params.groupId),
-          parameter: req.body.parameter,
-          operator: req.body.operator,
-          value: req.body.value
-        })
-        .returning();
-
-      res.status(201).json(condition);
-    } catch (error) {
-      console.error('Error creating condition:', error);
-      res.status(500).json({ error: "Failed to create condition" });
-    }
-  });
-
   // Vehicle Validation
   app.post("/api/rules/validate", async (req, res) => {
     try {
@@ -170,7 +98,7 @@ export function registerRoutes(app: Express): Server {
         );
 
       // Find matching rules based on basic criteria
-      const matches = applicableRules.filter(rule => 
+      const matches = applicableRules.filter(rule =>
         (rule.country === 'Any' || rule.country === validation.country) &&
         (rule.customer === 'Any' || rule.customer === validation.customer) &&
         (rule.opportunitySource === 'Any' || rule.opportunitySource === validation.opportunitySource) &&
@@ -211,6 +139,44 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error validating vehicle:', error);
       res.status(500).json({ error: "Failed to validate vehicle" });
+    }
+  });
+
+  // Condition Groups
+  app.post("/api/rules/:ruleId/condition-groups", async (req, res) => {
+    try {
+      const [group] = await db
+        .insert(conditionGroups)
+        .values({
+          ruleId: parseInt(req.params.ruleId),
+          description: req.body.description
+        })
+        .returning();
+
+      res.status(201).json(group);
+    } catch (error) {
+      console.error('Error creating condition group:', error);
+      res.status(500).json({ error: "Failed to create condition group" });
+    }
+  });
+
+  // Conditions
+  app.post("/api/condition-groups/:groupId/conditions", async (req, res) => {
+    try {
+      const [condition] = await db
+        .insert(conditions)
+        .values({
+          conditionGroupId: parseInt(req.params.groupId),
+          parameter: req.body.parameter,
+          operator: req.body.operator,
+          value: req.body.value
+        })
+        .returning();
+
+      res.status(201).json(condition);
+    } catch (error) {
+      console.error('Error creating condition:', error);
+      res.status(500).json({ error: "Failed to create condition" });
     }
   });
 

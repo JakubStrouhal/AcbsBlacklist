@@ -33,12 +33,47 @@ export const rules = pgTable('rules', {
   lastModifiedDate: timestamp('last_modified_date').notNull().defaultNow()
 });
 
+// Condition Groups table
+export const conditionGroups = pgTable('condition_groups', {
+  conditionGroupId: serial('condition_group_id').primaryKey(),
+  ruleId: integer('rule_id')
+    .notNull()
+    .references(() => rules.ruleId),
+  description: varchar('description', { length: 255 })
+});
+
+// Conditions table
+export const conditions = pgTable('conditions', {
+  conditionId: serial('condition_id').primaryKey(),
+  conditionGroupId: integer('condition_group_id')
+    .notNull()
+    .references(() => conditionGroups.conditionGroupId),
+  parameter: varchar('parameter', { length: 50 }).notNull(),
+  operator: operatorEnum('operator').notNull(),
+  value: varchar('value', { length: 255 }).notNull()
+});
+
 // Relations
 export const rulesRelations = relations(rules, ({ many }) => ({
   conditionGroups: many(conditionGroups)
 }));
 
-// Validation schema for rules
+export const conditionGroupsRelations = relations(conditionGroups, ({ one, many }) => ({
+  rule: one(rules, {
+    fields: [conditionGroups.ruleId],
+    references: [rules.ruleId],
+  }),
+  conditions: many(conditions)
+}));
+
+export const conditionsRelations = relations(conditions, ({ one }) => ({
+  conditionGroup: one(conditionGroups, {
+    fields: [conditions.conditionGroupId],
+    references: [conditionGroups.conditionGroupId],
+  })
+}));
+
+// Validation schemas
 export const ruleValidationSchema = z.object({
   ruleName: z.string().min(1, "Rule name is required").max(255),
   ruleType: z.enum(['Global', 'Local']),
@@ -60,25 +95,10 @@ export const ruleValidationSchema = z.object({
 // Types for the application
 export type Rule = typeof rules.$inferSelect;
 export type NewRule = typeof rules.$inferInsert;
-
-// Condition Groups and Conditions will be added later
-export const conditionGroups = pgTable('condition_groups', {
-  conditionGroupId: serial('condition_group_id').primaryKey(),
-  ruleId: integer('rule_id')
-    .notNull()
-    .references(() => rules.ruleId),
-  description: varchar('description', { length: 255 })
-});
-
-export const conditions = pgTable('conditions', {
-  conditionId: serial('condition_id').primaryKey(),
-  conditionGroupId: integer('condition_group_id')
-    .notNull()
-    .references(() => conditionGroups.conditionGroupId),
-  parameter: varchar('parameter', { length: 50 }).notNull(),
-  operator: operatorEnum('operator').notNull(),
-  value: varchar('value', { length: 255 }).notNull()
-});
+export type ConditionGroup = typeof conditionGroups.$inferSelect;
+export type NewConditionGroup = typeof conditionGroups.$inferInsert;
+export type Condition = typeof conditions.$inferSelect;
+export type NewCondition = typeof conditions.$inferInsert;
 
 // Audit log for tracking validation attempts
 export const auditLog = pgTable('audit_log', {

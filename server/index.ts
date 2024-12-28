@@ -42,7 +42,6 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
     throw err;
   });
@@ -63,35 +62,3 @@ app.use((req, res, next) => {
     log(`serving on port ${PORT}`);
   });
 })();
-
-process.on('SIGTERM', () => {
-  shutdownServer().then(() => process.exit(0));
-});
-
-process.on('SIGINT', () => {
-  shutdownServer().then(() => process.exit(0));
-});
-
-async function shutdownServer(): Promise<void> {
-  if (currentServer) {
-    return new Promise((resolve) => {
-      currentServer?.close(() => {
-        currentServer = null;
-        resolve();
-      });
-    });
-  }
-}
-
-let currentServer: Server | null = null;
-
-// Enable CORS for development
-if (process.env.NODE_ENV !== 'production') {
-  app.use(cors({
-    origin: 'http://localhost:5173',
-    credentials: true
-  }));
-}
-
-import cors from "cors";
-import { Server } from "http";
