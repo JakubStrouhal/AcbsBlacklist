@@ -2,13 +2,16 @@ import { Rule, NewRule, ConditionGroup, NewConditionGroup, Condition, NewConditi
 
 export interface ValidationRequest {
   ruleType: 'Global' | 'Local';
-  country: string;
-  opportunitySource: string;
-  customer: string;
-  make: string;
+  country: 'CZ' | 'SK' | 'PL' | 'Any';
+  opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
+  customer: 'Private' | 'Company';
+  make: 'Skoda' | 'Volkswagen' | 'Audi' | 'BMW' | 'Mercedes' | 'Other';
+  model: 'Fabia' | 'Octavia' | 'Golf' | 'Passat' | 'A4' | '3Series' | 'CClass' | 'Other';
   makeYear: number;
   tachometer: number;
-  fuelType: string;
+  fuelType: 'Petrol' | 'Diesel' | 'Electric' | 'Hybrid' | 'LPG' | 'CNG';
+  category: 'Hatchback' | 'Sedan' | 'SUV' | 'Coupe' | 'Wagon' | 'Van';
+  engine: '1.0L' | '1.4L' | '1.6L' | '1.8L' | '2.0L' | '2.5L' | '3.0L' | 'Electric';
   price: number;
 }
 
