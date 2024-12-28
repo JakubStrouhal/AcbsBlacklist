@@ -1,13 +1,10 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { Server } from "http";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-let currentServer: Server | null = null;
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -39,6 +36,42 @@ app.use((req, res, next) => {
   next();
 });
 
+(async () => {
+  const server = registerRoutes(app);
+
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+
+    res.status(status).json({ message });
+    throw err;
+  });
+
+  // importantly only setup vite in development and after
+  // setting up all the other routes so the catch-all route
+  // doesn't interfere with the other routes
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
+
+  // ALWAYS serve the app on port 5000
+  // this serves both the API and the client
+  const PORT = 5000;
+  server.listen(PORT, "0.0.0.0", () => {
+    log(`serving on port ${PORT}`);
+  });
+})();
+
+process.on('SIGTERM', () => {
+  shutdownServer().then(() => process.exit(0));
+});
+
+process.on('SIGINT', () => {
+  shutdownServer().then(() => process.exit(0));
+});
+
 async function shutdownServer(): Promise<void> {
   if (currentServer) {
     return new Promise((resolve) => {
@@ -50,53 +83,15 @@ async function shutdownServer(): Promise<void> {
   }
 }
 
-process.on('SIGTERM', () => {
-  shutdownServer().then(() => process.exit(0));
-});
+let currentServer: Server | null = null;
 
-process.on('SIGINT', () => {
-  shutdownServer().then(() => process.exit(0));
-});
+// Enable CORS for development
+if (process.env.NODE_ENV !== 'production') {
+  app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+  }));
+}
 
-(async () => {
-  // Ensure any existing server is shutdown
-  await shutdownServer();
-
-  try {
-    currentServer = registerRoutes(app);
-
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-      res.status(status).json({ message });
-      console.error('Server error:', err);
-    });
-
-    // importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
-    if (app.get("env") === "development") {
-      await setupVite(app, currentServer);
-    } else {
-      serveStatic(app);
-    }
-
-    // ALWAYS serve the app on port 5000
-    // this serves both the API and the client
-    const PORT = 5000;
-    currentServer.listen(PORT, "0.0.0.0", () => {
-      log(`serving on port ${PORT}`);
-    }).on('error', (error: NodeJS.ErrnoException) => {
-      if (error.code === 'EADDRINUSE') {
-        log(`Fatal: Port ${PORT} is already in use. Please ensure no other server is running.`);
-        process.exit(1);
-      } else {
-        log(`Fatal: Failed to start server: ${error.message}`);
-        process.exit(1);
-      }
-    });
-  } catch (error) {
-    console.error('Fatal: Failed to initialize server:', error);
-    process.exit(1);
-  }
-})();
+import cors from "cors";
+import { Server } from "http";
