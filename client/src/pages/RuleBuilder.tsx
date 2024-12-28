@@ -1,39 +1,74 @@
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import type { NewRule, Rule } from "@db/schema";
+import { RuleValidation, ruleValidationSchema } from "@db/schema";
 
 export default function RuleBuilder() {
   const { id } = useParams();
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+
   const { data: existingRule } = useQuery({
     queryKey: ['rules', id],
     queryFn: () => api.getRule(Number(id)),
     enabled: !!id
   });
 
-  const form = useForm<NewRule>({
-    defaultValues: existingRule || {
-      ruleName: '',
-      ruleType: 'Global',
-      status: 'Draft',
-      action: 'NoInterest',
-      customer: 'Any',
-      country: 'Any',
-      opportunitySource: 'Any'
+  const form = useForm<RuleValidation>({
+    resolver: zodResolver(ruleValidationSchema),
+    defaultValues: {
+      ...existingRule,
+      ruleName: existingRule?.ruleName || '',
+      ruleType: existingRule?.ruleType || 'Global',
+      validUntil: existingRule?.validUntil ? new Date(existingRule.validUntil).toISOString().slice(0, 16) : null,
+      status: existingRule?.status || 'Draft',
+      action: existingRule?.action || 'NoInterest',
+      actionMessage: existingRule?.actionMessage || '',
+      customer: existingRule?.customer || 'Any',
+      country: existingRule?.country || 'Any',
+      opportunitySource: existingRule?.opportunitySource || 'Any',
+      createdBy: existingRule?.createdBy || 1, // TODO: Replace with actual user ID
+      lastModifiedBy: 1 // TODO: Replace with actual user ID
     }
   });
 
-  const onSubmit = async (data: NewRule) => {
-    if (id) {
-      await api.updateRule(Number(id), data);
-    } else {
-      await api.createRule(data);
+  const onSubmit = async (data: RuleValidation) => {
+    try {
+      // Transform the date back to ISO string if it exists
+      const formattedData = {
+        ...data,
+        validUntil: data.validUntil ? new Date(data.validUntil).toISOString() : null,
+      };
+
+      if (id) {
+        await api.updateRule(Number(id), formattedData);
+        toast({
+          title: "Success",
+          description: "Rule updated successfully",
+        });
+      } else {
+        await api.createRule(formattedData);
+        toast({
+          title: "Success",
+          description: "Rule created successfully",
+        });
+      }
+      navigate("/");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save rule",
+        variant: "destructive",
+      });
     }
   };
 
@@ -53,8 +88,9 @@ export default function RuleBuilder() {
                   <FormItem>
                     <FormLabel>Rule Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} placeholder="Enter rule name" />
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -76,6 +112,49 @@ export default function RuleBuilder() {
                         <SelectItem value="Local">Local</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="validUntil"
+                render={({ field: { value, onChange, ...field } }) => (
+                  <FormItem>
+                    <FormLabel>Valid Until (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="datetime-local"
+                        {...field}
+                        value={value || ''}
+                        onChange={(e) => onChange(e.target.value || null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Active">Active</SelectItem>
+                        <SelectItem value="Inactive">Inactive</SelectItem>
+                        <SelectItem value="Draft">Draft</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -99,11 +178,100 @@ export default function RuleBuilder() {
                         <SelectItem value="NoInterest">NoInterest</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="actionMessage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Action Message</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Enter detailed message for this action" value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="customer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customer Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select customer type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Private">Private</SelectItem>
+                        <SelectItem value="Company">Company</SelectItem>
+                        <SelectItem value="Any">Any</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="CZ">CZ</SelectItem>
+                        <SelectItem value="SK">SK</SelectItem>
+                        <SelectItem value="PL">PL</SelectItem>
+                        <SelectItem value="Any">Any</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="opportunitySource"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Opportunity Source</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select opportunity source" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Ticking">Ticking</SelectItem>
+                        <SelectItem value="Webform">Webform</SelectItem>
+                        <SelectItem value="SMS">SMS</SelectItem>
+                        <SelectItem value="Any">Any</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
 
               <div className="flex justify-end gap-4">
+                <Button variant="outline" type="button" onClick={() => navigate("/")}>
+                  Cancel
+                </Button>
                 <Button type="submit">
                   {id ? 'Update Rule' : 'Create Rule'}
                 </Button>
