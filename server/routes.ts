@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { rules, auditLog } from "@db/schema";
+import { rules, conditionGroups, conditions, auditLog } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
@@ -27,7 +27,19 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ error: "Rule not found" });
       }
 
-      res.json(result[0]);
+      // Fetch associated condition groups and conditions
+      const ruleWithConditions = await db.query.rules.findFirst({
+        where: eq(rules.ruleId, parseInt(req.params.id)),
+        with: {
+          conditionGroups: {
+            with: {
+              conditions: true
+            }
+          }
+        }
+      });
+
+      res.json(ruleWithConditions);
     } catch (error) {
       console.error('Error fetching rule:', error);
       res.status(500).json({ error: "Failed to fetch rule" });
@@ -72,6 +84,72 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error updating rule:', error);
       res.status(500).json({ error: "Failed to update rule" });
+    }
+  });
+
+  // Condition Groups
+  app.get("/api/rules/:ruleId/condition-groups", async (req, res) => {
+    try {
+      const groups = await db
+        .select()
+        .from(conditionGroups)
+        .where(eq(conditionGroups.ruleId, parseInt(req.params.ruleId)));
+
+      res.json(groups);
+    } catch (error) {
+      console.error('Error fetching condition groups:', error);
+      res.status(500).json({ error: "Failed to fetch condition groups" });
+    }
+  });
+
+  app.post("/api/rules/:ruleId/condition-groups", async (req, res) => {
+    try {
+      const [group] = await db
+        .insert(conditionGroups)
+        .values({
+          ruleId: parseInt(req.params.ruleId),
+          description: req.body.description
+        })
+        .returning();
+
+      res.status(201).json(group);
+    } catch (error) {
+      console.error('Error creating condition group:', error);
+      res.status(500).json({ error: "Failed to create condition group" });
+    }
+  });
+
+  // Conditions
+  app.get("/api/condition-groups/:groupId/conditions", async (req, res) => {
+    try {
+      const groupConditions = await db
+        .select()
+        .from(conditions)
+        .where(eq(conditions.conditionGroupId, parseInt(req.params.groupId)));
+
+      res.json(groupConditions);
+    } catch (error) {
+      console.error('Error fetching conditions:', error);
+      res.status(500).json({ error: "Failed to fetch conditions" });
+    }
+  });
+
+  app.post("/api/condition-groups/:groupId/conditions", async (req, res) => {
+    try {
+      const [condition] = await db
+        .insert(conditions)
+        .values({
+          conditionGroupId: parseInt(req.params.groupId),
+          parameter: req.body.parameter,
+          operator: req.body.operator,
+          value: req.body.value
+        })
+        .returning();
+
+      res.status(201).json(condition);
+    } catch (error) {
+      console.error('Error creating condition:', error);
+      res.status(500).json({ error: "Failed to create condition" });
     }
   });
 

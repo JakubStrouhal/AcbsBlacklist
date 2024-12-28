@@ -10,7 +10,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { type Rule, type NewRule, ruleValidationSchema } from "@db/schema";
+import { ruleValidationSchema } from "@db/schema";
+import type { Rule } from "@db/schema";
+
+type FormData = {
+  ruleName: string;
+  ruleType: 'Global' | 'Local';
+  validUntil: string | undefined;
+  status: 'Active' | 'Inactive' | 'Draft';
+  action: 'POZVI - NESLIBUJ' | 'POZVI SWAPEM - NESLIBUJ' | 'NEZVI - NECHCEME' | 'NoInterest';
+  actionMessage: string;
+  customer: 'Private' | 'Company' | 'Any';
+  country: 'CZ' | 'SK' | 'PL' | 'Any';
+  opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
+  createdBy: number;
+  lastModifiedBy: number;
+};
 
 export default function RuleBuilder() {
   const { id } = useParams();
@@ -23,12 +38,14 @@ export default function RuleBuilder() {
     enabled: !!id
   });
 
-  const form = useForm<NewRule>({
+  const form = useForm<FormData>({
     resolver: zodResolver(ruleValidationSchema),
     defaultValues: {
       ruleName: existingRule?.ruleName || '',
       ruleType: existingRule?.ruleType || 'Global',
-      validUntil: existingRule?.validUntil ? new Date(existingRule.validUntil).toISOString().slice(0, 16) : undefined,
+      validUntil: existingRule?.validUntil 
+        ? new Date(existingRule.validUntil).toISOString().slice(0, 16) 
+        : undefined,
       status: existingRule?.status || 'Draft',
       action: existingRule?.action || 'NoInterest',
       actionMessage: existingRule?.actionMessage || '',
@@ -37,16 +54,16 @@ export default function RuleBuilder() {
       opportunitySource: existingRule?.opportunitySource || 'Any',
       createdBy: existingRule?.createdBy || 1, // TODO: Replace with actual user ID
       lastModifiedBy: 1, // TODO: Replace with actual user ID
-      lastModifiedDate: new Date()
     }
   });
 
-  const onSubmit = async (data: NewRule) => {
+  const onSubmit = async (data: FormData) => {
     try {
       if (id) {
         await api.updateRule(Number(id), {
           ...data,
-          validUntil: data.validUntil ? new Date(data.validUntil) : null
+          validUntil: data.validUntil ? new Date(data.validUntil) : null,
+          lastModifiedDate: new Date()
         });
         toast({
           title: "Success",
@@ -55,7 +72,8 @@ export default function RuleBuilder() {
       } else {
         await api.createRule({
           ...data,
-          validUntil: data.validUntil ? new Date(data.validUntil) : null
+          validUntil: data.validUntil ? new Date(data.validUntil) : null,
+          lastModifiedDate: new Date()
         });
         toast({
           title: "Success",
@@ -128,10 +146,6 @@ export default function RuleBuilder() {
                         type="datetime-local"
                         {...field}
                         value={field.value || ''}
-                        onChange={e => {
-                          const value = e.target.value;
-                          field.onChange(value || undefined);
-                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -193,7 +207,11 @@ export default function RuleBuilder() {
                   <FormItem>
                     <FormLabel>Action Message</FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Enter detailed message for this action" />
+                      <Textarea 
+                        {...field}
+                        value={field.value || ''}
+                        placeholder="Enter detailed message for this action" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

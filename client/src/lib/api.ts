@@ -5,13 +5,11 @@ export interface ValidationRequest {
   country: 'CZ' | 'SK' | 'PL' | 'Any';
   opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
   customer: 'Private' | 'Company';
-  make: 'Skoda' | 'Volkswagen' | 'Audi' | 'BMW' | 'Mercedes' | 'Other';
-  model: 'Fabia' | 'Octavia' | 'Golf' | 'Passat' | 'A4' | '3Series' | 'CClass' | 'Other';
+  make: string;
+  model?: string;
   makeYear: number;
   tachometer: number;
-  fuelType: 'Petrol' | 'Diesel' | 'Electric' | 'Hybrid' | 'LPG' | 'CNG';
-  category: 'Hatchback' | 'Sedan' | 'SUV' | 'Coupe' | 'Wagon' | 'Van';
-  engine: '1.0L' | '1.4L' | '1.6L' | '1.8L' | '2.0L' | '2.5L' | '3.0L' | 'Electric';
+  fuelType: string;
   price: number;
 }
 
@@ -52,6 +50,24 @@ export const api = {
     body: JSON.stringify(rule),
   }),
   deleteRule: (id: number) => fetchApi(`/rules/${id}`, { method: 'DELETE' }),
+
+  // Condition Groups
+  getConditionGroups: (ruleId: number) => 
+    fetchApi<ConditionGroup[]>(`/rules/${ruleId}/condition-groups`),
+  createConditionGroup: (ruleId: number, group: Omit<NewConditionGroup, 'ruleId'>) => 
+    fetchApi<ConditionGroup>(`/rules/${ruleId}/condition-groups`, {
+      method: 'POST',
+      body: JSON.stringify(group),
+    }),
+
+  // Conditions
+  getConditions: (groupId: number) => 
+    fetchApi<Condition[]>(`/condition-groups/${groupId}/conditions`),
+  createCondition: (groupId: number, condition: Omit<NewCondition, 'groupId'>) => 
+    fetchApi<Condition>(`/condition-groups/${groupId}/conditions`, {
+      method: 'POST',
+      body: JSON.stringify(condition),
+    }),
 
   // Validation
   validateVehicle: (data: ValidationRequest) => fetchApi<ValidationResponse>('/rules/validate', {

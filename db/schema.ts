@@ -1,6 +1,7 @@
 import { pgEnum, pgTable, text, serial, integer, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from 'drizzle-orm';
 
 // Enums
 export const ruleTypeEnum = pgEnum('rule_type', ['Global', 'Local']);
@@ -14,6 +15,7 @@ export const actionEnum = pgEnum('action', [
 export const customerEnum = pgEnum('customer', ['Private', 'Company', 'Any']);
 export const countryEnum = pgEnum('country', ['CZ', 'SK', 'PL', 'Any']);
 export const opportunitySourceEnum = pgEnum('opportunity_source', ['Ticking', 'Webform', 'SMS', 'Any']);
+export const operatorEnum = pgEnum('operator', ['=', '!=', 'IN', 'NOT IN', '>', '<', '<=', '>=', 'BETWEEN']);
 
 // Rules table
 export const rules = pgTable('rules', {
@@ -32,7 +34,47 @@ export const rules = pgTable('rules', {
   lastModifiedDate: timestamp('last_modified_date').notNull().defaultNow()
 });
 
-// Custom Zod schema for rule validation with proper date handling
+// Condition Groups table
+export const conditionGroups = pgTable('condition_groups', {
+  conditionGroupId: serial('condition_group_id').primaryKey(),
+  ruleId: integer('rule_id')
+    .notNull()
+    .references(() => rules.ruleId, { onDelete: 'cascade' }),
+  description: varchar('description', { length: 255 })
+});
+
+// Conditions table
+export const conditions = pgTable('conditions', {
+  conditionId: serial('condition_id').primaryKey(),
+  conditionGroupId: integer('condition_group_id')
+    .notNull()
+    .references(() => conditionGroups.conditionGroupId, { onDelete: 'cascade' }),
+  parameter: varchar('parameter', { length: 50 }).notNull(),
+  operator: operatorEnum('operator').notNull(),
+  value: varchar('value', { length: 255 }).notNull()
+});
+
+// Relations
+export const rulesRelations = relations(rules, ({ many }) => ({
+  conditionGroups: many(conditionGroups)
+}));
+
+export const conditionGroupsRelations = relations(conditionGroups, ({ one, many }) => ({
+  rule: one(rules, {
+    fields: [conditionGroups.ruleId],
+    references: [rules.ruleId],
+  }),
+  conditions: many(conditions)
+}));
+
+export const conditionsRelations = relations(conditions, ({ one }) => ({
+  group: one(conditionGroups, {
+    fields: [conditions.conditionGroupId],
+    references: [conditionGroups.conditionGroupId],
+  })
+}));
+
+// Custom Zod schema for rule validation
 export const ruleValidationSchema = z.object({
   ruleName: z.string().min(1, "Rule name is required").max(255, "Rule name is too long"),
   ruleType: z.enum(['Global', 'Local']),
@@ -62,11 +104,10 @@ export const auditLog = pgTable('audit_log', {
   success: boolean('success').notNull()
 });
 
-// Drizzle schemas for type safety
-export const insertRuleSchema = createInsertSchema(rules);
-export const selectRuleSchema = createSelectSchema(rules);
-
-// Types
+// Types for use in the application
 export type Rule = typeof rules.$inferSelect;
 export type NewRule = typeof rules.$inferInsert;
-export type RuleValidation = z.infer<typeof ruleValidationSchema>;
+export type ConditionGroup = typeof conditionGroups.$inferSelect;
+export type NewConditionGroup = typeof conditionGroups.$inferInsert;
+export type Condition = typeof conditions.$inferSelect;
+export type NewCondition = typeof conditions.$inferInsert;
