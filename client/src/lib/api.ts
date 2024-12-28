@@ -1,10 +1,10 @@
-import { Rule, NewRule, ConditionGroup, NewConditionGroup, Condition, NewCondition } from '@db/schema';
+import type { Rule } from '@db/schema';
 
 export interface ValidationRequest {
   ruleType: 'Global' | 'Local';
   country: 'CZ' | 'SK' | 'PL' | 'Any';
   opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
-  customer: 'Private' | 'Company';
+  customer: 'Private' | 'Company' | 'Any';
   make: string;
   model?: string;
   makeYear: number;
@@ -15,7 +15,7 @@ export interface ValidationRequest {
 
 export interface ValidationResponse {
   isMatch: boolean;
-  action: string | null;
+  action: 'POZVI - NESLIBUJ' | 'POZVI SWAPEM - NESLIBUJ' | 'NEZVI - NECHCEME' | null;
   actionMessage: string | null;
 }
 
@@ -41,33 +41,16 @@ export const api = {
   // Rules
   getRules: () => fetchApi<Rule[]>('/rules'),
   getRule: (id: number) => fetchApi<Rule>(`/rules/${id}`),
-  createRule: (rule: NewRule) => fetchApi<Rule>('/rules', {
+  createRule: (rule: Omit<Rule, 'ruleId'>) => fetchApi<Rule>('/rules', {
     method: 'POST',
     body: JSON.stringify(rule),
   }),
-  updateRule: (id: number, rule: Partial<Rule>) => fetchApi<Rule>(`/rules/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(rule),
-  }),
+  updateRule: (id: number, rule: Partial<Omit<Rule, 'ruleId'>>) => 
+    fetchApi<Rule>(`/rules/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(rule),
+    }),
   deleteRule: (id: number) => fetchApi(`/rules/${id}`, { method: 'DELETE' }),
-
-  // Condition Groups
-  getConditionGroups: (ruleId: number) => 
-    fetchApi<ConditionGroup[]>(`/rules/${ruleId}/condition-groups`),
-  createConditionGroup: (ruleId: number, group: Omit<NewConditionGroup, 'ruleId'>) => 
-    fetchApi<ConditionGroup>(`/rules/${ruleId}/condition-groups`, {
-      method: 'POST',
-      body: JSON.stringify(group),
-    }),
-
-  // Conditions
-  getConditions: (groupId: number) => 
-    fetchApi<Condition[]>(`/condition-groups/${groupId}/conditions`),
-  createCondition: (groupId: number, condition: Omit<NewCondition, 'groupId'>) => 
-    fetchApi<Condition>(`/condition-groups/${groupId}/conditions`, {
-      method: 'POST',
-      body: JSON.stringify(condition),
-    }),
 
   // Validation
   validateVehicle: (data: ValidationRequest) => fetchApi<ValidationResponse>('/rules/validate', {

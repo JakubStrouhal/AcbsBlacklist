@@ -18,7 +18,7 @@ type FormData = {
   ruleType: 'Global' | 'Local';
   validUntil: string | undefined;
   status: 'Active' | 'Inactive' | 'Draft';
-  action: 'POZVI - NESLIBUJ' | 'POZVI SWAPEM - NESLIBUJ' | 'NEZVI - NECHCEME' | 'NoInterest';
+  action: 'POZVI - NESLIBUJ' | 'POZVI SWAPEM - NESLIBUJ' | 'NEZVI - NECHCEME';
   actionMessage: string;
   customer: 'Private' | 'Company' | 'Any';
   country: 'CZ' | 'SK' | 'PL' | 'Any';
@@ -47,7 +47,7 @@ export default function RuleBuilder() {
         ? new Date(existingRule.validUntil).toISOString().slice(0, 16) 
         : undefined,
       status: existingRule?.status || 'Draft',
-      action: existingRule?.action || 'NoInterest',
+      action: existingRule?.action || 'POZVI - NESLIBUJ',
       actionMessage: existingRule?.actionMessage || '',
       customer: existingRule?.customer || 'Any',
       country: existingRule?.country || 'Any',
@@ -192,7 +192,6 @@ export default function RuleBuilder() {
                         <SelectItem value="POZVI - NESLIBUJ">POZVI - NESLIBUJ</SelectItem>
                         <SelectItem value="POZVI SWAPEM - NESLIBUJ">POZVI SWAPEM - NESLIBUJ</SelectItem>
                         <SelectItem value="NEZVI - NECHCEME">NEZVI - NECHCEME</SelectItem>
-                        <SelectItem value="NoInterest">NoInterest</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -209,7 +208,6 @@ export default function RuleBuilder() {
                     <FormControl>
                       <Textarea 
                         {...field}
-                        value={field.value || ''}
                         placeholder="Enter detailed message for this action" 
                       />
                     </FormControl>

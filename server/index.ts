@@ -1,10 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { Server } from "http";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+let currentServer: Server | null = null;
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -36,42 +39,60 @@ app.use((req, res, next) => {
   next();
 });
 
-async function startServer(port: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const server = registerRoutes(app);
+async function shutdownServer(): Promise<void> {
+  if (currentServer) {
+    return new Promise((resolve) => {
+      currentServer?.close(() => {
+        currentServer = null;
+        resolve();
+      });
+    });
+  }
+}
+
+process.on('SIGTERM', () => {
+  shutdownServer().then(() => process.exit(0));
+});
+
+process.on('SIGINT', () => {
+  shutdownServer().then(() => process.exit(0));
+});
+
+(async () => {
+  // Ensure any existing server is shutdown
+  await shutdownServer();
+
+  try {
+    currentServer = registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
       res.status(status).json({ message });
-      console.error(err);
+      console.error('Server error:', err);
     });
 
     if (app.get("env") === "development") {
-      setupVite(app, server).catch(reject);
+      await setupVite(app, currentServer);
     } else {
       serveStatic(app);
     }
 
-    server.listen(port, "0.0.0.0", () => {
-      log(`Server started on port ${port}`);
-      resolve();
+    // Fixed PORT as per requirements
+    const PORT = 5000;
+    currentServer.listen(PORT, "0.0.0.0", () => {
+      log(`Server started on port ${PORT}`);
     }).on('error', (error: NodeJS.ErrnoException) => {
       if (error.code === 'EADDRINUSE') {
-        log(`Port ${port} is in use, trying ${port + 1}`);
-        startServer(port + 1).then(resolve).catch(reject);
+        log(`Fatal: Port ${PORT} is already in use. Please ensure no other server is running.`);
+        process.exit(1);
       } else {
-        reject(error);
+        log(`Fatal: Failed to start server: ${error.message}`);
+        process.exit(1);
       }
     });
-  });
-}
-
-(async () => {
-  try {
-    await startServer(5000);
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('Fatal: Failed to initialize server:', error);
     process.exit(1);
   }
 })();
