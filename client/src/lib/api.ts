@@ -50,20 +50,6 @@ export const api = {
   }),
   deleteRule: (id: number) => fetchApi(`/rules/${id}`, { method: 'DELETE' }),
 
-  // Condition Groups
-  getConditionGroups: (ruleId: number) => fetchApi<ConditionGroup[]>(`/rules/${ruleId}/condition-groups`),
-  createConditionGroup: (group: NewConditionGroup) => fetchApi<ConditionGroup>('/condition-groups', {
-    method: 'POST',
-    body: JSON.stringify(group),
-  }),
-
-  // Conditions
-  getConditions: (groupId: number) => fetchApi<Condition[]>(`/condition-groups/${groupId}/conditions`),
-  createCondition: (condition: NewCondition) => fetchApi<Condition>('/conditions', {
-    method: 'POST',
-    body: JSON.stringify(condition),
-  }),
-
   // Validation
   validateVehicle: (data: ValidationRequest) => fetchApi<ValidationResponse>('/rules/validate', {
     method: 'POST',

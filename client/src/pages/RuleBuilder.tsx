@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { RuleValidation, ruleValidationSchema } from "@db/schema";
+import { type Rule, type NewRule, ruleValidationSchema } from "@db/schema";
 
 export default function RuleBuilder() {
   const { id } = useParams();
@@ -23,13 +23,12 @@ export default function RuleBuilder() {
     enabled: !!id
   });
 
-  const form = useForm<RuleValidation>({
+  const form = useForm<NewRule>({
     resolver: zodResolver(ruleValidationSchema),
     defaultValues: {
-      ...existingRule,
       ruleName: existingRule?.ruleName || '',
       ruleType: existingRule?.ruleType || 'Global',
-      validUntil: existingRule?.validUntil ? new Date(existingRule.validUntil).toISOString().slice(0, 16) : null,
+      validUntil: existingRule?.validUntil ? new Date(existingRule.validUntil).toISOString().slice(0, 16) : undefined,
       status: existingRule?.status || 'Draft',
       action: existingRule?.action || 'NoInterest',
       actionMessage: existingRule?.actionMessage || '',
@@ -37,26 +36,27 @@ export default function RuleBuilder() {
       country: existingRule?.country || 'Any',
       opportunitySource: existingRule?.opportunitySource || 'Any',
       createdBy: existingRule?.createdBy || 1, // TODO: Replace with actual user ID
-      lastModifiedBy: 1 // TODO: Replace with actual user ID
+      lastModifiedBy: 1, // TODO: Replace with actual user ID
+      lastModifiedDate: new Date()
     }
   });
 
-  const onSubmit = async (data: RuleValidation) => {
+  const onSubmit = async (data: NewRule) => {
     try {
-      // Transform the date back to ISO string if it exists
-      const formattedData = {
-        ...data,
-        validUntil: data.validUntil ? new Date(data.validUntil).toISOString() : null,
-      };
-
       if (id) {
-        await api.updateRule(Number(id), formattedData);
+        await api.updateRule(Number(id), {
+          ...data,
+          validUntil: data.validUntil ? new Date(data.validUntil) : null
+        });
         toast({
           title: "Success",
           description: "Rule updated successfully",
         });
       } else {
-        await api.createRule(formattedData);
+        await api.createRule({
+          ...data,
+          validUntil: data.validUntil ? new Date(data.validUntil) : null
+        });
         toast({
           title: "Success",
           description: "Rule created successfully",
@@ -120,15 +120,18 @@ export default function RuleBuilder() {
               <FormField
                 control={form.control}
                 name="validUntil"
-                render={({ field: { value, onChange, ...field } }) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Valid Until (Optional)</FormLabel>
                     <FormControl>
                       <Input 
                         type="datetime-local"
                         {...field}
-                        value={value || ''}
-                        onChange={(e) => onChange(e.target.value || null)}
+                        value={field.value || ''}
+                        onChange={e => {
+                          const value = e.target.value;
+                          field.onChange(value || undefined);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -190,7 +193,7 @@ export default function RuleBuilder() {
                   <FormItem>
                     <FormLabel>Action Message</FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Enter detailed message for this action" value={field.value || ''} />
+                      <Textarea {...field} placeholder="Enter detailed message for this action" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
