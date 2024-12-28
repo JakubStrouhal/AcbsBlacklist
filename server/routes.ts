@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
 import { rules, auditLog } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
   // Rules CRUD
@@ -18,16 +18,16 @@ export function registerRoutes(app: Express): Server {
 
   app.get("/api/rules/:id", async (req, res) => {
     try {
-      const [rule] = await db
+      const result = await db
         .select()
         .from(rules)
         .where(eq(rules.ruleId, parseInt(req.params.id)));
 
-      if (!rule) {
+      if (!result.length) {
         return res.status(404).json({ error: "Rule not found" });
       }
 
-      res.json(rule);
+      res.json(result[0]);
     } catch (error) {
       console.error('Error fetching rule:', error);
       res.status(500).json({ error: "Failed to fetch rule" });
@@ -84,8 +84,12 @@ export function registerRoutes(app: Express): Server {
       const applicableRules = await db
         .select()
         .from(rules)
-        .where(eq(rules.ruleType, validation.ruleType))
-        .where(eq(rules.status, 'Active'));
+        .where(
+          and(
+            eq(rules.ruleType, validation.ruleType),
+            eq(rules.status, 'Active')
+          )
+        );
 
       // Find matching rules based on basic criteria
       const matches = applicableRules.filter(rule => 

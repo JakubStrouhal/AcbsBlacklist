@@ -32,11 +32,11 @@ export const rules = pgTable('rules', {
   lastModifiedDate: timestamp('last_modified_date').notNull().defaultNow()
 });
 
-// Custom Zod schema for rule validation
+// Custom Zod schema for rule validation with proper date handling
 export const ruleValidationSchema = z.object({
   ruleName: z.string().min(1, "Rule name is required").max(255, "Rule name is too long"),
   ruleType: z.enum(['Global', 'Local']),
-  validUntil: z.string().nullable(),
+  validUntil: z.string().nullable().transform(val => val ? new Date(val) : null),
   status: z.enum(['Active', 'Inactive', 'Draft']),
   action: z.enum([
     'POZVI - NESLIBUJ',
@@ -62,7 +62,7 @@ export const auditLog = pgTable('audit_log', {
   success: boolean('success').notNull()
 });
 
-// Schemas
+// Drizzle schemas for type safety
 export const insertRuleSchema = createInsertSchema(rules);
 export const selectRuleSchema = createSelectSchema(rules);
 
