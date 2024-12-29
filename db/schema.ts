@@ -43,7 +43,7 @@ export const conditionGroups = pgTable('condition_groups', {
   description: varchar('description', { length: 255 })
 });
 
-// Conditions table
+// Conditions table with orGroup support
 export const conditions = pgTable('conditions', {
   conditionId: serial('condition_id').primaryKey(),
   conditionGroupId: integer('condition_group_id')
@@ -51,7 +51,8 @@ export const conditions = pgTable('conditions', {
     .references(() => conditionGroups.conditionGroupId, { onDelete: 'cascade' }),
   parameter: varchar('parameter', { length: 50 }).notNull(),
   operator: operatorEnum('operator').notNull(),
-  value: varchar('value', { length: 255 }).notNull()
+  value: varchar('value', { length: 255 }).notNull(),
+  orGroup: integer('or_group').default(null)
 });
 
 // Relations
@@ -88,7 +89,8 @@ export type NewCondition = typeof conditions.$inferInsert;
 export const conditionSchema = z.object({
   parameter: z.string().min(1),
   operator: z.enum(operatorEnum.enumValues),
-  value: z.string().min(1)
+  value: z.string().min(1),
+  orGroup: z.number().nullable().optional()
 });
 
 export const conditionGroupSchema = z.object({
@@ -112,7 +114,7 @@ export const ruleValidationSchema = z.object({
   opportunitySource: z.enum(['Ticking', 'Webform', 'SMS', 'Any']),
   createdBy: z.number(),
   lastModifiedBy: z.number(),
-  makeYear: z.number().optional(), // Added makeYear to the schema
+  makeYear: z.number().optional(),
   conditionGroups: z.array(conditionGroupSchema).optional()
 });
 
