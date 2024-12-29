@@ -140,7 +140,7 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
         <Card key={groupIndex}>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium">
-              Condition Group {groupIndex + 1}
+              {group.description || `Unnamed Group ${groupIndex + 1}`}
             </CardTitle>
             <Button
               type="button"
@@ -154,7 +154,7 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
           <CardContent>
             <div className="space-y-4">
               <Input
-                placeholder="Group Description"
+                placeholder="Enter group name"
                 value={group.description}
                 onChange={(e) =>
                   updateGroupDescription(groupIndex, e.target.value)
