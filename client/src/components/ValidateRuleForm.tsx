@@ -291,8 +291,8 @@ export function ValidateRuleForm() {
                     <FormItem className="flex-shrink-0 w-24">
                       <FormLabel>Compare (Optional)</FormLabel>
                       <Select 
-                        onValueChange={(value) => field.onChange(value || null)}
-                        value={field.value}
+                        onValueChange={(value: any) => field.onChange(value || null)}
+                        value={field.value || undefined}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -300,7 +300,6 @@ export function ValidateRuleForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value={null}>None</SelectItem>
                           <SelectItem value="=">=</SelectItem>
                           <SelectItem value=">">&#62;</SelectItem>
                           <SelectItem value="<">&#60;</SelectItem>
