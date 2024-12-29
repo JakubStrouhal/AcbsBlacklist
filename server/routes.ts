@@ -58,15 +58,16 @@ export function registerRoutes(app: Express): Server {
 
   app.patch("/api/rules/:id", async (req, res) => {
     try {
-      const updateData = {
-        ...req.body,
-        lastModifiedDate: new Date(),
-        validUntil: req.body.validUntil ? new Date(req.body.validUntil) : null
-      };
+      // Extract only rule-specific fields, ignoring conditionGroups
+      const { conditionGroups: _, ...updateData } = req.body;
 
       const [updatedRule] = await db
         .update(rules)
-        .set(updateData)
+        .set({
+          ...updateData,
+          lastModifiedDate: new Date(),
+          validUntil: updateData.validUntil ? new Date(updateData.validUntil) : null
+        })
         .where(eq(rules.ruleId, parseInt(req.params.id)))
         .returning();
 
