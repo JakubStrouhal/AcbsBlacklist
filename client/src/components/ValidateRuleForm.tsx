@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import type { ValidationResponse } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 const validateSchema = z.object({
   ruleType: z.enum(['Global', 'Local']),
@@ -32,6 +33,46 @@ type FormData = z.infer<typeof validateSchema>;
 export function ValidateRuleForm() {
   const { toast } = useToast();
   const [result, setResult] = useState<ValidationResponse | null>(null);
+  const [selectedMakeId, setSelectedMakeId] = useState<string | null>(null);
+
+  // Fetch enum data
+  const { data: makes } = useQuery({
+    queryKey: ['makes'],
+    queryFn: async () => {
+      const response = await fetch('/api/vehicle/makes');
+      if (!response.ok) throw new Error('Failed to fetch makes');
+      return response.json();
+    }
+  });
+
+  const { data: models } = useQuery({
+    queryKey: ['models', selectedMakeId],
+    queryFn: async () => {
+      if (!selectedMakeId) return [];
+      const response = await fetch(`/api/vehicle/models/${selectedMakeId}`);
+      if (!response.ok) throw new Error('Failed to fetch models');
+      return response.json();
+    },
+    enabled: !!selectedMakeId
+  });
+
+  const { data: fuelTypes } = useQuery({
+    queryKey: ['fuelTypes'],
+    queryFn: async () => {
+      const response = await fetch('/api/vehicle/fuel-types');
+      if (!response.ok) throw new Error('Failed to fetch fuel types');
+      return response.json();
+    }
+  });
+
+  const { data: engineTypes } = useQuery({
+    queryKey: ['engineTypes'],
+    queryFn: async () => {
+      const response = await fetch('/api/vehicle/engine-types');
+      if (!response.ok) throw new Error('Failed to fetch engine types');
+      return response.json();
+    }
+  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(validateSchema),
@@ -184,9 +225,28 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Make</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter vehicle make" />
-                    </FormControl>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedMakeId(value);
+                        // Reset model when make changes
+                        form.setValue('model', '');
+                      }} 
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select make" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {makes?.map((make: any) => (
+                          <SelectItem key={make.id} value={make.id.toString()}>
+                            {make.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -199,9 +259,24 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Model (Optional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter vehicle model" />
-                    </FormControl>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={!selectedMakeId}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={selectedMakeId ? "Select model" : "Select make first"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {models?.map((model: any) => (
+                          <SelectItem key={model.id} value={model.id.toString()}>
+                            {model.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -259,9 +334,20 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Fuel Type</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter fuel type" />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select fuel type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {fuelTypes?.map((fuelType: any) => (
+                          <SelectItem key={fuelType.id} value={fuelType.id.toString()}>
+                            {fuelType.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -294,9 +380,20 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Engine</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter engine details" />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select engine type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {engineTypes?.map((engine: any) => (
+                          <SelectItem key={engine.id} value={engine.id.toString()}>
+                            {engine.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
