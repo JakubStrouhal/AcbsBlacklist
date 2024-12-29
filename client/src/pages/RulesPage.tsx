@@ -15,12 +15,38 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash } from "lucide-react";
 import { api } from "@/lib/api";
 import { Rule } from "@db/schema";
+import { RPanel } from "@/components/RPanel";
+
+interface FilterState {
+  ruleType: string | null;
+  status: string | null;
+  country: string | null;
+  customer: string | null;
+  opportunitySource: string | null;
+}
 
 export default function RulesPage() {
   const [, navigate] = useLocation();
+  const [filters, setFilters] = useState<FilterState>({
+    ruleType: null,
+    status: null,
+    country: null,
+    customer: null,
+    opportunitySource: null,
+  });
+
   const { data: rules, isLoading } = useQuery({
     queryKey: ['rules'],
     queryFn: api.getRules,
+  });
+
+  const filteredRules = rules?.filter(rule => {
+    if (filters.ruleType && rule.ruleType !== filters.ruleType) return false;
+    if (filters.status && rule.status !== filters.status) return false;
+    if (filters.country && rule.country !== filters.country) return false;
+    if (filters.customer && rule.customer !== filters.customer) return false;
+    if (filters.opportunitySource && rule.opportunitySource !== filters.opportunitySource) return false;
+    return true;
   });
 
   if (isLoading) {
@@ -28,13 +54,15 @@ export default function RulesPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 relative">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Vehicle Validation Rules</CardTitle>
-          <Button onClick={() => navigate("/rules/new")}>
-            <Plus className="mr-2 h-4 w-4" /> Add New Rule
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate("/rules/new")}>
+              <Plus className="mr-2 h-4 w-4" /> Add New Rule
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -51,7 +79,7 @@ export default function RulesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rules?.map((rule) => (
+              {filteredRules?.map((rule) => (
                 <TableRow key={rule.ruleId}>
                   <TableCell className="font-medium">{rule.ruleName}</TableCell>
                   <TableCell>
@@ -88,6 +116,7 @@ export default function RulesPage() {
           </Table>
         </CardContent>
       </Card>
+      <RPanel onFilterChange={setFilters} />
     </div>
   );
 }
