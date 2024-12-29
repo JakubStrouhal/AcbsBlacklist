@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Minus, Save, GitMerge, GitBranch } from "lucide-react";
 import { operatorEnum } from "@db/schema";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 
 interface Condition {
   parameter: string;
@@ -26,28 +27,91 @@ interface Props {
   isEditing?: boolean;
 }
 
-const PARAMETERS = [
-  { value: 'make', label: 'Make' },
-  { value: 'model', label: 'Model' },
-  { value: 'makeYear', label: 'Year' },
-  { value: 'tachometer', label: 'Tachometer' },
-  { value: 'fuelType', label: 'Fuel Type' },
-  { value: 'price', label: 'Price' }
-];
-
-const OPERATORS: Array<{ value: typeof operatorEnum.enumValues[number]; label: string }> = [
-  { value: '=', label: 'Equals' },
-  { value: '!=', label: 'Not Equals' },
-  { value: '>', label: 'Greater Than' },
-  { value: '<', label: 'Less Than' },
-  { value: '>=', label: 'Greater Than or Equal' },
-  { value: '<=', label: 'Less Than or Equal' },
-  { value: 'IN', label: 'In List' },
-  { value: 'NOT IN', label: 'Not In List' },
-  { value: 'BETWEEN', label: 'Between' }
-];
+// Define the parameter types and their possible operators
+const PARAMETER_CONFIG = {
+  make: {
+    label: 'Make',
+    operators: ['=', '!=', 'IN', 'NOT IN'],
+    requiresEnum: true,
+    enumEndpoint: '/api/vehicle/makes'
+  },
+  model: {
+    label: 'Model',
+    operators: ['=', '!=', 'IN', 'NOT IN'],
+    requiresEnum: true,
+    enumEndpoint: '/api/vehicle/models' // Will need makeId parameter
+  },
+  fuelType: {
+    label: 'Fuel Type',
+    operators: ['=', '!=', 'IN', 'NOT IN'],
+    requiresEnum: true,
+    enumEndpoint: '/api/vehicle/fuel-types'
+  },
+  engineType: {
+    label: 'Engine Type',
+    operators: ['=', '!=', 'IN', 'NOT IN'],
+    requiresEnum: true,
+    enumEndpoint: '/api/vehicle/engine-types'
+  },
+  makeYear: {
+    label: 'Year',
+    operators: ['=', '>', '<', '>=', '<=', 'BETWEEN'],
+    requiresEnum: false
+  },
+  tachometer: {
+    label: 'Tachometer',
+    operators: ['=', '>', '<', '>=', '<=', 'BETWEEN'],
+    requiresEnum: false
+  },
+  price: {
+    label: 'Price',
+    operators: ['=', '>', '<', '>=', '<=', 'BETWEEN'],
+    requiresEnum: false
+  }
+};
 
 export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing = false }: Props) {
+  const [selectedMakeId, setSelectedMakeId] = useState<string | null>(null);
+
+  // Fetch enum data
+  const { data: makes } = useQuery({
+    queryKey: ['makes'],
+    queryFn: async () => {
+      const response = await fetch('/api/vehicle/makes');
+      if (!response.ok) throw new Error('Failed to fetch makes');
+      return response.json();
+    }
+  });
+
+  const { data: models } = useQuery({
+    queryKey: ['models', selectedMakeId],
+    queryFn: async () => {
+      if (!selectedMakeId) return [];
+      const response = await fetch(`/api/vehicle/models/${selectedMakeId}`);
+      if (!response.ok) throw new Error('Failed to fetch models');
+      return response.json();
+    },
+    enabled: !!selectedMakeId
+  });
+
+  const { data: fuelTypes } = useQuery({
+    queryKey: ['fuelTypes'],
+    queryFn: async () => {
+      const response = await fetch('/api/vehicle/fuel-types');
+      if (!response.ok) throw new Error('Failed to fetch fuel types');
+      return response.json();
+    }
+  });
+
+  const { data: engineTypes } = useQuery({
+    queryKey: ['engineTypes'],
+    queryFn: async () => {
+      const response = await fetch('/api/vehicle/engine-types');
+      if (!response.ok) throw new Error('Failed to fetch engine types');
+      return response.json();
+    }
+  });
+
   const addGroup = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -89,7 +153,6 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
     const newGroups = [...groups];
     const conditions = newGroups[groupIndex].conditions;
 
-    // If we're removing a condition, we need to update the orGroup of the next condition
     if (conditionIndex < conditions.length - 1) {
       conditions[conditionIndex + 1].orGroup = conditionIndex > 0 ? 
         conditions[conditionIndex - 1].orGroup : null;
@@ -117,7 +180,6 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
         orGroup: value as number | null
       };
 
-      // Update all subsequent conditions in the same group until we hit a condition with a different orGroup
       if (value !== null) {
         for (let i = conditionIndex + 1; i < conditions.length; i++) {
           if (conditions[i].orGroup !== conditions[i-1].orGroup) break;
@@ -131,10 +193,34 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
           ? value 
           : value
       };
+
+      // If parameter is 'make', store the makeId for model filtering
+      if (field === 'parameter' && value === 'make') {
+        setSelectedMakeId(null); // Reset selected make when changing parameter
+      }
+      // If parameter is 'make' and we're updating the value, store the makeId
+      if (field === 'value' && conditions[conditionIndex].parameter === 'make') {
+        setSelectedMakeId(value as string);
+      }
     }
 
     newGroups[groupIndex].conditions = conditions;
     onChange(newGroups);
+  };
+
+  const getEnumValuesForParameter = (parameter: string, condition: Condition) => {
+    switch (parameter) {
+      case 'make':
+        return makes || [];
+      case 'model':
+        return models || [];
+      case 'fuelType':
+        return fuelTypes || [];
+      case 'engineType':
+        return engineTypes || [];
+      default:
+        return [];
+    }
   };
 
   return (
@@ -207,9 +293,9 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
                       <SelectValue placeholder="Select Parameter" />
                     </SelectTrigger>
                     <SelectContent>
-                      {PARAMETERS.map((param) => (
-                        <SelectItem key={param.value} value={param.value}>
-                          {param.label}
+                      {Object.entries(PARAMETER_CONFIG).map(([key, config]) => (
+                        <SelectItem key={key} value={key}>
+                          {config.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -225,22 +311,42 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
                       <SelectValue placeholder="Select Operator" />
                     </SelectTrigger>
                     <SelectContent>
-                      {OPERATORS.map((op) => (
-                        <SelectItem key={op.value} value={op.value}>
-                          {op.label}
+                      {condition.parameter && PARAMETER_CONFIG[condition.parameter as keyof typeof PARAMETER_CONFIG].operators.map((op) => (
+                        <SelectItem key={op} value={op}>
+                          {op}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
-                  <Input
-                    className="flex-1"
-                    placeholder="Value"
-                    value={condition.value}
-                    onChange={(e) =>
-                      updateCondition(groupIndex, conditionIndex, 'value', e.target.value)
-                    }
-                  />
+                  {condition.parameter && PARAMETER_CONFIG[condition.parameter as keyof typeof PARAMETER_CONFIG].requiresEnum ? (
+                    <Select
+                      value={condition.value}
+                      onValueChange={(value) =>
+                        updateCondition(groupIndex, conditionIndex, 'value', value)
+                      }
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select Value" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getEnumValuesForParameter(condition.parameter, condition).map((item: any) => (
+                          <SelectItem key={item.id} value={item.id.toString()}>
+                            {item.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      className="flex-1"
+                      placeholder="Value"
+                      value={condition.value}
+                      onChange={(e) =>
+                        updateCondition(groupIndex, conditionIndex, 'value', e.target.value)
+                      }
+                    />
+                  )}
 
                   <Button
                     type="button"

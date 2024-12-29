@@ -40,7 +40,7 @@ export const engineTypes = pgTable('engine_types', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull().unique(),
   fuelTypeId: integer('fuel_type_id').notNull().references(() => fuelTypes.id),
-  displacement: integer('displacement').notNull(), // in cc
+  displacement: integer('displacement'), // Making it nullable for electric vehicles
   power: integer('power'), // in hp
   isActive: boolean('is_active').notNull().default(true),
 });
