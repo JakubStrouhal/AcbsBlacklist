@@ -19,6 +19,10 @@ export interface ValidationResponse {
   actionMessage: string | null;
 }
 
+export interface RuleWithConditions extends Rule {
+  conditionGroups?: Array<ConditionGroup & { conditions: Condition[] }>;
+}
+
 const API_BASE = '/api';
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -40,7 +44,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 export const api = {
   // Rules
   getRules: () => fetchApi<Rule[]>('/rules'),
-  getRule: (id: number) => fetchApi<Rule & { conditionGroups: (ConditionGroup & { conditions: Condition[] })[] }>(`/rules/${id}`),
+  getRule: (id: number) => fetchApi<RuleWithConditions>(`/rules/${id}`),
   createRule: (rule: Omit<Rule, 'ruleId'>) => fetchApi<Rule>('/rules', {
     method: 'POST',
     body: JSON.stringify(rule),

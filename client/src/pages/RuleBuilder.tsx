@@ -24,7 +24,7 @@ interface ConditionGroup {
 
 type FormData = Omit<Rule, 'ruleId' | 'lastModifiedDate'> & {
   validUntil: string | undefined;
-  conditionGroups: ConditionGroup[];
+  conditionGroups?: ConditionGroup[];
 };
 
 export default function RuleBuilder() {
@@ -70,47 +70,47 @@ export default function RuleBuilder() {
     form.setValue('conditionGroups', groups, { shouldDirty: true });
   };
 
-  const saveConditionGroups = async () => {
+  const saveConditionGroup = async (groupIndex: number) => {
     if (!id) return;
 
     try {
-      const groups = form.getValues('conditionGroups');
+      const groups = form.getValues('conditionGroups') || [];
+      const group = groups[groupIndex];
 
-      // Delete existing condition groups (cascade will handle conditions)
-      await api.deleteRuleConditionGroups(Number(id));
-
-      // Create new condition groups and their conditions
-      for (const group of groups) {
-        if (!group.description || !Array.isArray(group.conditions)) continue;
-
-        const newGroup = await api.createConditionGroup(Number(id), {
-          description: group.description
+      if (!group || !group.description) {
+        toast({
+          title: "Error",
+          description: "Group description is required",
+          variant: "destructive",
         });
-
-        // Create conditions for the group
-        for (const condition of group.conditions) {
-          if (!condition.parameter || !condition.operator || !condition.value) continue;
-
-          await api.createCondition(newGroup.conditionGroupId, {
-            parameter: condition.parameter,
-            operator: condition.operator,
-            value: condition.value
-          });
-        }
+        return;
       }
 
-      // Refresh the rule data
+      const newGroup = await api.createConditionGroup(Number(id), {
+        description: group.description
+      });
+
+      for (const condition of group.conditions) {
+        if (!condition.parameter || !condition.operator || !condition.value) continue;
+
+        await api.createCondition(newGroup.conditionGroupId, {
+          parameter: condition.parameter,
+          operator: condition.operator,
+          value: condition.value
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ['rules', id] });
 
       toast({
         title: "Success",
-        description: "Condition groups saved successfully",
+        description: `Condition group ${groupIndex + 1} saved successfully`,
       });
     } catch (error) {
-      console.error('Error saving condition groups:', error);
+      console.error('Error saving condition group:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save condition groups",
+        description: error instanceof Error ? error.message : "Failed to save condition group",
         variant: "destructive",
       });
     }
@@ -118,32 +118,27 @@ export default function RuleBuilder() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      if (id) {
-        // Update existing rule
-        await api.updateRule(Number(id), {
-          ...data,
-          validUntil: data.validUntil ? new Date(data.validUntil) : null,
-          lastModifiedDate: new Date()
-        });
+      const ruleData = {
+        ...data,
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        lastModifiedDate: new Date()
+      };
 
+      const { conditionGroups: _, ...ruleDataWithoutConditions } = ruleData;
+
+      if (id) {
+        await api.updateRule(Number(id), ruleDataWithoutConditions);
         toast({
           title: "Success",
           description: "Rule updated successfully",
         });
       } else {
-        // Create new rule
-        const newRule = await api.createRule({
-          ...data,
-          validUntil: data.validUntil ? new Date(data.validUntil) : null,
-          lastModifiedDate: new Date()
-        });
-
+        const newRule = await api.createRule(ruleDataWithoutConditions);
         toast({
           title: "Success",
           description: "Rule created successfully",
         });
-
-        navigate("/");
+        navigate(`/rules/${newRule.ruleId}`);
       }
     } catch (error) {
       console.error('Error saving rule:', error);
@@ -353,21 +348,12 @@ export default function RuleBuilder() {
               />
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Conditions</h3>
-                  {id && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={saveConditionGroups}
-                    >
-                      Save Conditions
-                    </Button>
-                  )}
-                </div>
+                <h3 className="text-lg font-medium">Conditions</h3>
                 <ConditionBuilder
-                  groups={form.watch('conditionGroups')}
+                  groups={form.watch('conditionGroups') || []}
                   onChange={handleConditionGroupsChange}
+                  onSaveGroup={saveConditionGroup}
+                  isEditing={!!id}
                 />
               </div>
 

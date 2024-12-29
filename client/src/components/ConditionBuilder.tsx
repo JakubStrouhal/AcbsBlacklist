@@ -21,6 +21,8 @@ interface ConditionGroup {
 interface Props {
   groups: ConditionGroup[];
   onChange: (groups: ConditionGroup[]) => void;
+  onSaveGroup?: (groupIndex: number) => Promise<void>;
+  isEditing?: boolean;
 }
 
 const PARAMETERS = [
@@ -44,7 +46,7 @@ const OPERATORS: Array<{ value: typeof operatorEnum.enumValues[number]; label: s
   { value: 'BETWEEN', label: 'Between' }
 ];
 
-export function ConditionBuilder({ groups = [], onChange }: Props) {
+export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing = false }: Props) {
   const addGroup = () => {
     onChange([...groups, { description: '', conditions: [] }]);
   };
@@ -84,12 +86,9 @@ export function ConditionBuilder({ groups = [], onChange }: Props) {
     value: string
   ) => {
     const newGroups = [...groups];
-    if (field === 'operator') {
-      // Ensure the operator is valid
-      if (operatorEnum.enumValues.includes(value as any)) {
-        newGroups[groupIndex].conditions[conditionIndex][field] = value as typeof operatorEnum.enumValues[number];
-      }
-    } else {
+    if (field === 'operator' && operatorEnum.enumValues.includes(value as any)) {
+      newGroups[groupIndex].conditions[conditionIndex][field] = value as typeof operatorEnum.enumValues[number];
+    } else if (field !== 'operator') {
       (newGroups[groupIndex].conditions[conditionIndex] as any)[field] = value;
     }
     onChange(newGroups);
@@ -209,13 +208,24 @@ export function ConditionBuilder({ groups = [], onChange }: Props) {
                   </Button>
                 </div>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => addCondition(groupIndex)}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Condition
-              </Button>
+              <div className="flex justify-between items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addCondition(groupIndex)}
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Add Condition
+                </Button>
+                {isEditing && onSaveGroup && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onSaveGroup(groupIndex)}
+                  >
+                    Save Conditions
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
