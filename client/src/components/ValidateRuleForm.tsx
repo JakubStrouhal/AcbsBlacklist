@@ -20,12 +20,12 @@ const validateSchema = z.object({
   opportunitySource: z.enum(['Ticking', 'Webform', 'SMS', 'Any']),
   make: z.string().min(1, "Make is required"),
   model: z.string().optional(),
-  yearComparison: z.enum(['=', '>', '<']),
-  makeYear: z.number().min(1900).max(new Date().getFullYear() + 1),
-  fuelType: z.string().min(1, "Fuel type is required"),
-  tachometer: z.number().min(0),
-  engine: z.string().min(1, "Engine is required"),
-  price: z.number().min(0),
+  yearComparison: z.enum(['=', '>', '<']).optional(),
+  makeYear: z.number().min(1900).max(new Date().getFullYear() + 1).optional(),
+  fuelType: z.string().optional(),
+  tachometer: z.number().min(0).optional(),
+  engine: z.string().optional(),
+  price: z.number().min(0).optional(),
 });
 
 type FormData = z.infer<typeof validateSchema>;
@@ -73,6 +73,15 @@ export function ValidateRuleForm() {
       return response.json();
     }
   });
+
+  const { data: yearComparisons } = useQuery({
+    queryKey: ['yearComparisons'],
+    queryFn: async () => {
+      const response = await fetch('/api/yearComparisons')
+      if (!response.ok) throw new Error('Failed to fetch year comparisons')
+      return response.json()
+    }
+  })
 
   const form = useForm<FormData>({
     resolver: zodResolver(validateSchema),
@@ -225,13 +234,13 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Make</FormLabel>
-                    <Select 
+                    <Select
                       onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedMakeId(value);
                         // Reset model when make changes
                         form.setValue('model', '');
-                      }} 
+                      }}
                       value={field.value}
                     >
                       <FormControl>
@@ -259,8 +268,8 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Model (Optional)</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={field.onChange}
                       value={field.value}
                       disabled={!selectedMakeId}
                     >
