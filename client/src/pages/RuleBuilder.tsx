@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -10,9 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { ruleValidationSchema, operatorEnum, type Rule } from "@db/schema";
+import { ruleValidationSchema, operatorEnum } from "@db/schema";
 import { ConditionBuilder } from "@/components/ConditionBuilder";
-import React from 'react';
 
 interface ConditionGroup {
   description: string;
@@ -35,7 +35,6 @@ type FormData = {
   opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
   createdBy: number;
   lastModifiedBy: number;
-  conditionGroups: ConditionGroup[];
 };
 
 export default function RuleBuilder() {
@@ -43,6 +42,7 @@ export default function RuleBuilder() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [conditionGroups, setConditionGroups] = useState<ConditionGroup[]>([]);
 
   const { data: existingRule, isLoading } = useQuery({
     queryKey: ['rules', id],
@@ -64,39 +64,51 @@ export default function RuleBuilder() {
       opportunitySource: 'Any',
       createdBy: 1,
       lastModifiedBy: 1,
-      conditionGroups: []
     }
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (existingRule) {
+      // Reset form data
       form.reset({
-        ...existingRule,
+        ruleName: existingRule.ruleName,
+        ruleType: existingRule.ruleType,
         validUntil: existingRule.validUntil 
           ? new Date(existingRule.validUntil).toISOString().slice(0, 16) 
           : null,
-        conditionGroups: existingRule.conditionGroups?.map(group => ({
+        status: existingRule.status,
+        action: existingRule.action,
+        actionMessage: existingRule.actionMessage || '',
+        customer: existingRule.customer,
+        country: existingRule.country,
+        opportunitySource: existingRule.opportunitySource,
+        createdBy: existingRule.createdBy,
+        lastModifiedBy: existingRule.lastModifiedBy,
+      });
+
+      // Set condition groups separately from form state
+      setConditionGroups(
+        existingRule.conditionGroups?.map(group => ({
           description: group.description || '',
           conditions: group.conditions.map(condition => ({
             parameter: condition.parameter,
-            operator: condition.operator as typeof operatorEnum.enumValues[number],
+            operator: condition.operator,
             value: condition.value
           }))
         })) || []
-      });
+      );
     }
   }, [existingRule, form]);
 
   const handleConditionGroupsChange = (groups: ConditionGroup[]) => {
-    form.setValue('conditionGroups', groups);
+    setConditionGroups(groups);
   };
 
   const saveConditionGroup = async (groupIndex: number) => {
     if (!id) return;
 
     try {
-      const groups = form.getValues('conditionGroups');
-      const group = groups[groupIndex];
+      const group = conditionGroups[groupIndex];
 
       if (!group) {
         toast({
@@ -125,15 +137,12 @@ export default function RuleBuilder() {
         return;
       }
 
-      // Delete existing conditions for this group
       await api.deleteRuleConditionGroups(Number(id));
 
-      // Create new group
       const newGroup = await api.createConditionGroup(Number(id), {
         description: group.description
       });
 
-      // Add all conditions
       for (const condition of group.conditions) {
         if (!condition.parameter || !condition.operator || !condition.value) {
           continue;
@@ -164,21 +173,20 @@ export default function RuleBuilder() {
 
   const onSubmit = async (data: FormData) => {
     try {
+      // Prepare rule data without condition groups
       const ruleData = {
         ...data,
-        validUntil: data.validUntil ? new Date(data.validUntil) : null
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
       };
 
-      const { conditionGroups: _, ...ruleDataWithoutConditions } = ruleData;
-
       if (id) {
-        await api.updateRule(Number(id), ruleDataWithoutConditions);
+        await api.updateRule(Number(id), ruleData);
         toast({
           title: "Success",
           description: "Rule updated successfully",
         });
       } else {
-        const newRule = await api.createRule(ruleDataWithoutConditions);
+        const newRule = await api.createRule(ruleData);
         toast({
           title: "Success",
           description: "Rule created successfully",
@@ -401,7 +409,7 @@ export default function RuleBuilder() {
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Conditions</h3>
                 <ConditionBuilder
-                  groups={form.watch('conditionGroups')}
+                  groups={conditionGroups}
                   onChange={handleConditionGroupsChange}
                   onSaveGroup={saveConditionGroup}
                   isEditing={!!id}
