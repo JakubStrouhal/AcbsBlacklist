@@ -218,7 +218,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/rules/validate", async (req, res) => {
     try {
       const validation = req.body;
-      console.log('Validation request:', validation); // Add logging
+      console.log('Validation request:', validation);
 
       // Fetch applicable rules
       const applicableRules = await db
@@ -231,118 +231,134 @@ export function registerRoutes(app: Express): Server {
           )
         );
 
-      console.log('Found applicable rules:', applicableRules); // Add logging
+      console.log('Found applicable rules:', applicableRules);
 
       // Find matching rules based on basic criteria
-      const matches = await Promise.all(applicableRules.map(async (rule) => {
-        // Basic criteria matching
-        const basicMatch = (
-          (rule.country === 'Any' || rule.country === validation.country) &&
-          (rule.customer === 'Any' || rule.customer === validation.customer) &&
-          (rule.opportunitySource === 'Any' || rule.opportunitySource === validation.opportunitySource)
-        );
-
-        console.log(`Rule ${rule.ruleId} basic match:`, basicMatch); // Add logging
-
-        if (!basicMatch) return null;
-
-        // Year comparison logic
-        let yearMatch = true;
-        if (validation.yearComparison && validation.makeYear && rule.makeYear) {
-          switch (validation.yearComparison) {
-            case '=':
-              yearMatch = validation.makeYear === rule.makeYear;
-              break;
-            case '>':
-              yearMatch = validation.makeYear > rule.makeYear;
-              break;
-            case '<':
-              yearMatch = validation.makeYear < rule.makeYear;
-              break;
-          }
-        }
-
-        console.log(`Rule ${rule.ruleId} year match:`, yearMatch); // Add logging
-
-        if (!yearMatch) return null;
-
-        // Get condition groups for the rule
-        const conditionGroups = await db
-          .select()
-          .from(conditionGroups)
-          .where(eq(conditionGroups.ruleId, rule.ruleId));
-
-        // For each condition group, check all conditions
-        const groupMatches = await Promise.all(conditionGroups.map(async (group) => {
-          const conditions = await db
-            .select()
-            .from(conditions)
-            .where(eq(conditions.conditionGroupId, group.conditionGroupId));
-
-          // Group conditions by orGroup
-          const orGroups = conditions.reduce((acc, condition) => {
-            const key = condition.orGroup ?? condition.conditionId;
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(condition);
-            return acc;
-          }, {} as Record<number, typeof conditions[number][]>);
-
-          // Check each OR group (conditions within group are ORed, groups are ANDed)
-          return Object.values(orGroups).every(orConditions =>
-            orConditions.some(condition => {
-              const value = validation[condition.parameter as keyof typeof validation];
-              console.log(`Checking condition:`, condition, 'with value:', value); // Add logging
-
-              if (typeof value === 'undefined') return true; // Skip undefined values
-
-              switch (condition.operator) {
-                case '=':
-                  return value.toString() === condition.value;
-                case '!=':
-                  return value.toString() !== condition.value;
-                case '>':
-                  return Number(value) > Number(condition.value);
-                case '<':
-                  return Number(value) < Number(condition.value);
-                case '>=':
-                  return Number(value) >= Number(condition.value);
-                case '<=':
-                  return Number(value) <= Number(condition.value);
-                case 'IN':
-                  const validValues = condition.value.split(',');
-                  return validValues.includes(value.toString());
-                case 'NOT IN':
-                  const invalidValues = condition.value.split(',');
-                  return !invalidValues.includes(value.toString());
-                default:
-                  return false;
-              }
-            })
+      for (const rule of applicableRules) {
+        try {
+          // Basic criteria matching
+          const basicMatch = (
+            (rule.country === 'Any' || rule.country === validation.country) &&
+            (rule.customer === 'Any' || rule.customer === validation.customer) &&
+            (rule.opportunitySource === 'Any' || rule.opportunitySource === validation.opportunitySource)
           );
-        }));
 
-        const isMatch = groupMatches.every(match => match);
-        console.log(`Rule ${rule.ruleId} final match:`, isMatch); // Add logging
+          console.log(`Rule ${rule.ruleId} basic match:`, basicMatch);
 
-        return isMatch ? rule : null;
-      }));
+          if (!basicMatch) continue;
 
-      const matchingRule = matches.find(rule => rule !== null);
+          // Year comparison logic
+          let yearMatch = true;
+          if (validation.yearComparison && validation.makeYear && rule.makeYear) {
+            switch (validation.yearComparison) {
+              case '=':
+                yearMatch = validation.makeYear === rule.makeYear;
+                break;
+              case '>':
+                yearMatch = validation.makeYear > rule.makeYear;
+                break;
+              case '<':
+                yearMatch = validation.makeYear < rule.makeYear;
+                break;
+            }
+          }
 
-      if (matchingRule) {
-        // Log the validation attempt
-        await db.insert(auditLog).values({
-          request: JSON.stringify(validation),
-          response: JSON.stringify(matchingRule),
-          ruleId: matchingRule.ruleId,
-          success: true
-        });
+          console.log(`Rule ${rule.ruleId} year match:`, yearMatch);
 
-        return res.json({
-          isMatch: true,
-          action: matchingRule.action,
-          actionMessage: matchingRule.actionMessage
-        });
+          if (!yearMatch) continue;
+
+          // Get condition groups for the rule
+          const ruleGroups = await db
+            .select()
+            .from(conditionGroups)
+            .where(eq(conditionGroups.ruleId, rule.ruleId));
+
+          // If there are no condition groups, the rule matches
+          if (ruleGroups.length === 0) {
+            return res.json({
+              isMatch: true,
+              action: rule.action,
+              actionMessage: rule.actionMessage
+            });
+          }
+
+          // Check each condition group
+          let allGroupsMatch = true;
+
+          for (const group of ruleGroups) {
+            const groupConditions = await db
+              .select()
+              .from(conditions)
+              .where(eq(conditions.conditionGroupId, group.conditionGroupId));
+
+            if (groupConditions.length === 0) continue;
+
+            // Group conditions by orGroup
+            const orGroups: Record<string, typeof groupConditions> = {};
+            for (const condition of groupConditions) {
+              const key = `${condition.orGroup ?? condition.conditionId}`;
+              if (!orGroups[key]) orGroups[key] = [];
+              orGroups[key].push(condition);
+            }
+
+            // Check if any condition in each OR group matches
+            const groupMatches = Object.values(orGroups).every(orConditions =>
+              orConditions.some(condition => {
+                const value = validation[condition.parameter as keyof typeof validation];
+                console.log(`Checking condition:`, condition, 'with value:', value);
+
+                if (value === undefined || value === null) return false;
+
+                switch (condition.operator) {
+                  case '=':
+                    return value.toString() === condition.value;
+                  case '!=':
+                    return value.toString() !== condition.value;
+                  case '>':
+                    return Number(value) > Number(condition.value);
+                  case '<':
+                    return Number(value) < Number(condition.value);
+                  case '>=':
+                    return Number(value) >= Number(condition.value);
+                  case '<=':
+                    return Number(value) <= Number(condition.value);
+                  case 'IN':
+                    const validValues = condition.value.split(',');
+                    return validValues.includes(value.toString());
+                  case 'NOT IN':
+                    const invalidValues = condition.value.split(',');
+                    return !invalidValues.includes(value.toString());
+                  default:
+                    return false;
+                }
+              })
+            );
+
+            if (!groupMatches) {
+              allGroupsMatch = false;
+              break;
+            }
+          }
+
+          if (allGroupsMatch) {
+            // Log the validation attempt
+            await db.insert(auditLog).values({
+              request: JSON.stringify(validation),
+              response: JSON.stringify(rule),
+              ruleId: rule.ruleId,
+              success: true
+            });
+
+            return res.json({
+              isMatch: true,
+              action: rule.action,
+              actionMessage: rule.actionMessage
+            });
+          }
+        } catch (error) {
+          console.error(`Error processing rule ${rule.ruleId}:`, error);
+          continue;
+        }
       }
 
       // Log the failed validation attempt
