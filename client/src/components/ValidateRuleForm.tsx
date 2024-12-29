@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
 import type { ValidationResponse } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 
@@ -74,6 +73,15 @@ export function ValidateRuleForm() {
     }
   });
 
+  const { data: years } = useQuery({
+    queryKey: ['years'],
+    queryFn: async () => {
+      const response = await fetch('/api/years');
+      if (!response.ok) throw new Error('Failed to fetch years');
+      return response.json();
+    }
+  })
+
   const form = useForm<FormData>({
     resolver: zodResolver(validateSchema),
     defaultValues: {
@@ -94,13 +102,38 @@ export function ValidateRuleForm() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      const response = await api.validateVehicle(data);
-      setResult(response);
+      // Transform the data to match the expected format
+      const validationData = {
+        ...data,
+        // Only include makeYear and yearComparison if they are provided
+        makeYear: data.makeYear || undefined,
+        yearComparison: data.yearComparison || undefined,
+        // Convert string IDs to numbers where needed
+        make: data.make ? parseInt(data.make) : undefined,
+        model: data.model ? parseInt(data.model) : undefined,
+        fuelType: data.fuelType ? parseInt(data.fuelType) : undefined,
+        engine: data.engine ? parseInt(data.engine) : undefined,
+      };
+
+      const response = await fetch('/api/rules/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(validationData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Validation failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      setResult(result);
 
       toast({
         title: "Validation Complete",
-        description: response.actionMessage || "Rule validation completed successfully",
-        variant: response.isMatch ? "default" : "destructive",
+        description: result.actionMessage || "Rule validation completed successfully",
+        variant: result.isMatch ? "default" : "destructive",
       });
     } catch (error) {
       console.error('Error validating rule:', error);
@@ -225,13 +258,13 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Make</FormLabel>
-                    <Select 
+                    <Select
                       onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedMakeId(value);
                         // Reset model when make changes
                         form.setValue('model', '');
-                      }} 
+                      }}
                       value={field.value}
                     >
                       <FormControl>
@@ -259,8 +292,8 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Model (Optional)</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={field.onChange}
                       value={field.value}
                       disabled={!selectedMakeId}
                     >
@@ -290,7 +323,7 @@ export function ValidateRuleForm() {
                   render={({ field }) => (
                     <FormItem className="flex-shrink-0 w-24">
                       <FormLabel>Compare (Optional)</FormLabel>
-                      <Select 
+                      <Select
                         onValueChange={(value: any) => field.onChange(value || null)}
                         value={field.value || undefined}
                       >

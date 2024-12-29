@@ -218,6 +218,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/rules/validate", async (req, res) => {
     try {
       const validation = req.body;
+      console.log('Validation request:', validation); // Add logging
 
       // Fetch applicable rules
       const applicableRules = await db
@@ -230,24 +231,40 @@ export function registerRoutes(app: Express): Server {
           )
         );
 
+      console.log('Found applicable rules:', applicableRules); // Add logging
+
       // Find matching rules based on basic criteria
       const matches = await Promise.all(applicableRules.map(async (rule) => {
-        const basicMatch = (rule.country === 'Any' || rule.country === validation.country) &&
+        // Basic criteria matching
+        const basicMatch = (
+          (rule.country === 'Any' || rule.country === validation.country) &&
           (rule.customer === 'Any' || rule.customer === validation.customer) &&
-          (rule.opportunitySource === 'Any' || rule.opportunitySource === validation.opportunitySource) &&
-          (!rule.validUntil || new Date(rule.validUntil) > new Date());
+          (rule.opportunitySource === 'Any' || rule.opportunitySource === validation.opportunitySource)
+        );
+
+        console.log(`Rule ${rule.ruleId} basic match:`, basicMatch); // Add logging
+
+        if (!basicMatch) return null;
 
         // Year comparison logic
         let yearMatch = true;
-        if (validation.yearComparison === '=') {
-          yearMatch = validation.makeYear === rule.makeYear;
-        } else if (validation.yearComparison === '>') {
-          yearMatch = validation.makeYear > (rule.makeYear || 0);
-        } else if (validation.yearComparison === '<') {
-          yearMatch = validation.makeYear < (rule.makeYear || Number.MAX_SAFE_INTEGER);
+        if (validation.yearComparison && validation.makeYear && rule.makeYear) {
+          switch (validation.yearComparison) {
+            case '=':
+              yearMatch = validation.makeYear === rule.makeYear;
+              break;
+            case '>':
+              yearMatch = validation.makeYear > rule.makeYear;
+              break;
+            case '<':
+              yearMatch = validation.makeYear < rule.makeYear;
+              break;
+          }
         }
 
-        if (!basicMatch || !yearMatch) return null;
+        console.log(`Rule ${rule.ruleId} year match:`, yearMatch); // Add logging
+
+        if (!yearMatch) return null;
 
         // Get condition groups for the rule
         const conditionGroups = await db
@@ -273,26 +290,41 @@ export function registerRoutes(app: Express): Server {
           // Check each OR group (conditions within group are ORed, groups are ANDed)
           return Object.values(orGroups).every(orConditions =>
             orConditions.some(condition => {
-              // Add your condition evaluation logic here
-              // This is a simplified example
               const value = validation[condition.parameter as keyof typeof validation];
-              if (typeof value === 'string' || typeof value === 'number') {
-                switch (condition.operator) {
-                  case '=':
-                    return value.toString() === condition.value;
-                  case '>':
-                    return Number(value) > Number(condition.value);
-                  case '<':
-                    return Number(value) < Number(condition.value);
-                  // Add other operators as needed
-                }
+              console.log(`Checking condition:`, condition, 'with value:', value); // Add logging
+
+              if (typeof value === 'undefined') return true; // Skip undefined values
+
+              switch (condition.operator) {
+                case '=':
+                  return value.toString() === condition.value;
+                case '!=':
+                  return value.toString() !== condition.value;
+                case '>':
+                  return Number(value) > Number(condition.value);
+                case '<':
+                  return Number(value) < Number(condition.value);
+                case '>=':
+                  return Number(value) >= Number(condition.value);
+                case '<=':
+                  return Number(value) <= Number(condition.value);
+                case 'IN':
+                  const validValues = condition.value.split(',');
+                  return validValues.includes(value.toString());
+                case 'NOT IN':
+                  const invalidValues = condition.value.split(',');
+                  return !invalidValues.includes(value.toString());
+                default:
+                  return false;
               }
-              return false;
             })
           );
         }));
 
-        return groupMatches.every(match => match) ? rule : null;
+        const isMatch = groupMatches.every(match => match);
+        console.log(`Rule ${rule.ruleId} final match:`, isMatch); // Add logging
+
+        return isMatch ? rule : null;
       }));
 
       const matchingRule = matches.find(rule => rule !== null);
