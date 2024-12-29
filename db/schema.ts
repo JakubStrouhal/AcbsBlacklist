@@ -74,6 +74,17 @@ export const conditionsRelations = relations(conditions, ({ one }) => ({
 }));
 
 // Validation schemas
+const conditionSchema = z.object({
+  parameter: z.string().min(1),
+  operator: z.enum(operatorEnum.enumValues),
+  value: z.string().min(1)
+});
+
+const conditionGroupSchema = z.object({
+  description: z.string(),
+  conditions: z.array(conditionSchema)
+});
+
 export const ruleValidationSchema = z.object({
   ruleName: z.string().min(1, "Rule name is required").max(255),
   ruleType: z.enum(['Global', 'Local']),
@@ -89,7 +100,8 @@ export const ruleValidationSchema = z.object({
   country: z.enum(['CZ', 'SK', 'PL', 'Any']),
   opportunitySource: z.enum(['Ticking', 'Webform', 'SMS', 'Any']),
   createdBy: z.number(),
-  lastModifiedBy: z.number()
+  lastModifiedBy: z.number(),
+  conditionGroups: z.array(conditionGroupSchema).optional()
 });
 
 // Types for the application

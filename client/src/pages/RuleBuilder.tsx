@@ -10,8 +10,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { ruleValidationSchema } from "@db/schema";
+import { ruleValidationSchema, operatorEnum } from "@db/schema";
+import { ConditionBuilder } from "@/components/ConditionBuilder";
 import type { Rule } from "@db/schema";
+
+interface ConditionGroup {
+  description: string;
+  conditions: Array<{
+    parameter: string;
+    operator: typeof operatorEnum.enumValues[number];
+    value: string;
+  }>;
+}
 
 type FormData = {
   ruleName: string;
@@ -25,6 +35,7 @@ type FormData = {
   opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
   createdBy: number;
   lastModifiedBy: number;
+  conditionGroups: ConditionGroup[];
 };
 
 export default function RuleBuilder() {
@@ -52,29 +63,61 @@ export default function RuleBuilder() {
       customer: existingRule?.customer || 'Any',
       country: existingRule?.country || 'Any',
       opportunitySource: existingRule?.opportunitySource || 'Any',
-      createdBy: existingRule?.createdBy || 1, // TODO: Replace with actual user ID
-      lastModifiedBy: 1, // TODO: Replace with actual user ID
+      createdBy: existingRule?.createdBy || 1,
+      lastModifiedBy: 1,
+      conditionGroups: existingRule?.conditionGroups || []
     }
   });
 
   const onSubmit = async (data: FormData) => {
     try {
       if (id) {
-        await api.updateRule(Number(id), {
+        // Update existing rule
+        const updatedRule = await api.updateRule(Number(id), {
           ...data,
           validUntil: data.validUntil ? new Date(data.validUntil) : null,
           lastModifiedDate: new Date()
         });
+
+        // Update condition groups
+        if (data.conditionGroups && data.conditionGroups.length > 0) {
+          for (const group of data.conditionGroups) {
+            const newGroup = await api.createConditionGroup(updatedRule.ruleId, {
+              description: group.description
+            });
+
+            // Create conditions for the group
+            for (const condition of group.conditions) {
+              await api.createCondition(newGroup.conditionGroupId, condition);
+            }
+          }
+        }
+
         toast({
           title: "Success",
           description: "Rule updated successfully",
         });
       } else {
-        await api.createRule({
+        // Create new rule
+        const newRule = await api.createRule({
           ...data,
           validUntil: data.validUntil ? new Date(data.validUntil) : null,
           lastModifiedDate: new Date()
         });
+
+        // Create condition groups and conditions
+        if (data.conditionGroups && data.conditionGroups.length > 0) {
+          for (const group of data.conditionGroups) {
+            const newGroup = await api.createConditionGroup(newRule.ruleId, {
+              description: group.description
+            });
+
+            for (const condition of group.conditions) {
+              await api.createCondition(newGroup.conditionGroupId, condition);
+            }
+          }
+        }
+
         toast({
           title: "Success",
           description: "Rule created successfully",
@@ -286,6 +329,14 @@ export default function RuleBuilder() {
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Conditions</h3>
+                <ConditionBuilder
+                  groups={form.watch('conditionGroups') || []}
+                  onChange={(groups) => form.setValue('conditionGroups', groups)}
+                />
+              </div>
 
               <div className="flex justify-end gap-4">
                 <Button variant="outline" type="button" onClick={() => navigate("/")}>

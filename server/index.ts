@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { createServer } from "http";
 
 const app = express();
 app.use(express.json());
@@ -37,42 +38,40 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = registerRoutes(app);
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    res.status(status).json({ message });
-    console.error('Server error:', err);
-  });
-
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  const startServer = (port: number) => {
-    try {
-      server.listen(port, "0.0.0.0", () => {
-        log(`Server running on port ${port}`);
-      });
-    } catch (err) {
-      console.error(`Failed to start server on port ${port}:`, err);
-      process.exit(1);
-    }
-  };
-
-  // Try to start on port 5000, if fails, try 3000
   try {
-    startServer(5000);
-  } catch (err) {
-    if (err && (err as any).code === 'EADDRINUSE') {
-      console.log('Port 5000 is in use, trying port 3000...');
-      startServer(3000);
+    const server = registerRoutes(app);
+
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      res.status(status).json({ message });
+      console.error('Server error:', err);
+    });
+
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
     } else {
-      console.error('Failed to start server:', err);
-      process.exit(1);
+      serveStatic(app);
     }
+
+    // Use a single port (5000) and handle errors appropriately
+    server.listen(5000, "0.0.0.0", () => {
+      log(`Server running on port 5000`);
+    });
+
+    // Handle cleanup
+    const cleanup = () => {
+      server.close(() => {
+        log('Server shutdown complete');
+        process.exit(0);
+      });
+    };
+
+    process.on('SIGTERM', cleanup);
+    process.on('SIGINT', cleanup);
+
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
 })();

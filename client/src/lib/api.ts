@@ -1,4 +1,4 @@
-import type { Rule } from '@db/schema';
+import type { Rule, ConditionGroup, Condition } from '@db/schema';
 
 export interface ValidationRequest {
   ruleType: 'Global' | 'Local';
@@ -51,6 +51,20 @@ export const api = {
       body: JSON.stringify(rule),
     }),
   deleteRule: (id: number) => fetchApi(`/rules/${id}`, { method: 'DELETE' }),
+
+  // Condition Groups
+  createConditionGroup: (ruleId: number, group: Pick<ConditionGroup, 'description'>) =>
+    fetchApi<ConditionGroup>(`/rules/${ruleId}/condition-groups`, {
+      method: 'POST',
+      body: JSON.stringify(group),
+    }),
+
+  // Conditions
+  createCondition: (groupId: number, condition: Pick<Condition, 'parameter' | 'operator' | 'value'>) =>
+    fetchApi<Condition>(`/condition-groups/${groupId}/conditions`, {
+      method: 'POST',
+      body: JSON.stringify(condition),
+    }),
 
   // Validation
   validateVehicle: (data: ValidationRequest) => fetchApi<ValidationResponse>('/rules/validate', {
