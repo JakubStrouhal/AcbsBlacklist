@@ -13,14 +13,14 @@ import { api } from "@/lib/api";
 import type { ValidationResponse } from "@/lib/api";
 
 const validateSchema = z.object({
+  yearComparison: z.enum(['=', '>', '<']),
+  makeYear: z.number().min(1900).max(new Date().getFullYear() + 1),
   ruleType: z.enum(['Global', 'Local']),
   country: z.enum(['CZ', 'SK', 'PL', 'Any']),
   opportunitySource: z.enum(['Ticking', 'Webform', 'SMS', 'Any']),
   customer: z.enum(['Private', 'Company', 'Any']),
   make: z.string().min(1, "Make is required"),
   model: z.string().optional(),
-  yearComparison: z.enum(['=', '>', '<']),
-  makeYear: z.number().min(1900).max(new Date().getFullYear() + 1),
   price: z.number().min(0),
 });
 
@@ -33,25 +33,21 @@ export function ValidateRuleForm() {
   const form = useForm<FormData>({
     resolver: zodResolver(validateSchema),
     defaultValues: {
+      yearComparison: '=',
+      makeYear: new Date().getFullYear(),
       ruleType: 'Global',
       country: 'CZ',
       opportunitySource: 'Webform',
       customer: 'Private',
       make: '',
       model: '',
-      yearComparison: '=',
-      makeYear: new Date().getFullYear(),
       price: 0,
     }
   });
 
   const onSubmit = async (data: FormData) => {
     try {
-      const response = await api.validateVehicle({
-        ...data,
-        makeYear: Number(data.makeYear),
-        price: Number(data.price)
-      });
+      const response = await api.validateVehicle(data);
       setResult(response);
 
       toast({
@@ -78,6 +74,99 @@ export function ValidateRuleForm() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Year Comparison Fields */}
+              <div className="flex gap-4 col-span-2">
+                <FormField
+                  control={form.control}
+                  name="makeYear"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>Year</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={e => field.onChange(Number(e.target.value))}
+                          placeholder="Enter year"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="yearComparison"
+                  render={({ field }) => (
+                    <FormItem className="flex-shrink-0 w-24">
+                      <FormLabel>Compare</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="=">=</SelectItem>
+                          <SelectItem value=">">&#62;</SelectItem>
+                          <SelectItem value="<">&#60;</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Rest of the form fields */}
+              <FormField
+                control={form.control}
+                name="make"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Make</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter vehicle make" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="model"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Model (Optional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter vehicle model" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Price</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        onChange={e => field.onChange(Number(e.target.value))}
+                        placeholder="Enter price"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="ruleType"
@@ -166,97 +255,6 @@ export function ValidateRuleForm() {
                         <SelectItem value="Any">Any</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="make"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Make</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter vehicle make" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="model"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Model (Optional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter vehicle model" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex gap-4">
-                <FormField
-                  control={form.control}
-                  name="yearComparison"
-                  render={({ field }) => (
-                    <FormItem className="flex-shrink-0 w-24">
-                      <FormLabel>Compare</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="=">=</SelectItem>
-                          <SelectItem value=">">&#62;</SelectItem>
-                          <SelectItem value="<">&#60;</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="makeYear"
-                  render={({ field }) => (
-                    <FormItem className="flex-1">
-                      <FormLabel>Year</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field} 
-                          onChange={e => field.onChange(Number(e.target.value))}
-                          placeholder="Enter year" 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        {...field} 
-                        onChange={e => field.onChange(Number(e.target.value))}
-                        placeholder="Enter price" 
-                      />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

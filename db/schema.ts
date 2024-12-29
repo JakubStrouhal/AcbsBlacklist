@@ -28,6 +28,7 @@ export const rules = pgTable('rules', {
   customer: customerEnum('customer').notNull().default('Any'),
   country: countryEnum('country').notNull().default('Any'),
   opportunitySource: opportunitySourceEnum('opportunity_source').notNull().default('Any'),
+  makeYear: integer('make_year'),
   createdBy: integer('created_by').notNull(),
   lastModifiedBy: integer('last_modified_by').notNull(),
   lastModifiedDate: timestamp('last_modified_date').notNull().defaultNow()
@@ -111,6 +112,7 @@ export const ruleValidationSchema = z.object({
   opportunitySource: z.enum(['Ticking', 'Webform', 'SMS', 'Any']),
   createdBy: z.number(),
   lastModifiedBy: z.number(),
+  makeYear: z.number().optional(), // Added makeYear to the schema
   conditionGroups: z.array(conditionGroupSchema).optional()
 });
 

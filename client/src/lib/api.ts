@@ -5,10 +5,10 @@ export interface ValidationRequest {
   country: 'CZ' | 'SK' | 'PL' | 'Any';
   opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
   customer: 'Private' | 'Company' | 'Any';
-  make: string;
-  model?: string;
   yearComparison: '=' | '>' | '<';
   makeYear: number;
+  make: string;
+  model?: string;
   price: number;
 }
 
@@ -58,7 +58,7 @@ export const api = {
     body: JSON.stringify(rule),
   }),
 
-  updateRule: (id: number, rule: Partial<Omit<Rule, 'ruleId'>>) => 
+  updateRule: (id: number, rule: Partial<Omit<Rule, 'ruleId'>>) =>
     fetchApi<Rule>(`/rules/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(rule),
