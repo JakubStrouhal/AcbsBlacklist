@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import type { ValidationResponse } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
+import { HelpCircle } from "lucide-react";
 
 const validateSchema = z.object({
   ruleType: z.enum(['Global', 'Local']),
@@ -29,12 +31,26 @@ const validateSchema = z.object({
 
 type FormData = z.infer<typeof validateSchema>;
 
+const FIELD_DESCRIPTIONS = {
+  ruleType: "Choose between Global rules (applied to all vehicles) or Local rules (specific to certain conditions)",
+  country: "Select the country where this validation rule applies",
+  customer: "Specify the customer type this rule is designed for",
+  opportunitySource: "The source of the opportunity or lead",
+  make: "The manufacturer of the vehicle",
+  model: "Specific model of the selected manufacturer",
+  yearComparison: "How to compare the vehicle's year with the specified year",
+  makeYear: "The manufacturing year of the vehicle",
+  fuelType: "Type of fuel the vehicle uses",
+  tachometer: "Current mileage reading of the vehicle",
+  engine: "Engine specification of the vehicle",
+  price: "Current market price of the vehicle"
+};
+
 export function ValidateRuleForm() {
   const { toast } = useToast();
   const [result, setResult] = useState<ValidationResponse | null>(null);
   const [selectedMakeId, setSelectedMakeId] = useState<string | null>(null);
 
-  // Fetch enum data
   const { data: makes } = useQuery({
     queryKey: ['makes'],
     queryFn: async () => {
@@ -102,13 +118,10 @@ export function ValidateRuleForm() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      // Transform the data to match the expected format
       const validationData = {
         ...data,
-        // Only include makeYear and yearComparison if they are provided
         makeYear: data.makeYear || undefined,
         yearComparison: data.yearComparison || undefined,
-        // Convert string IDs to numbers where needed
         make: data.make ? parseInt(data.make) : undefined,
         model: data.model ? parseInt(data.model) : undefined,
         fuelType: data.fuelType ? parseInt(data.fuelType) : undefined,
@@ -145,6 +158,19 @@ export function ValidateRuleForm() {
     }
   };
 
+  const FormTooltip = ({ description }: { description: string }) => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <HelpCircle className="h-4 w-4 ml-2 inline-block text-muted-foreground" />
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="max-w-xs">{description}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -154,13 +180,15 @@ export function ValidateRuleForm() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Rule Type */}
               <FormField
                 control={form.control}
                 name="ruleType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Rule Type</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Rule Type</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.ruleType} />
+                    </div>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -176,14 +204,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
-
-              {/* Country */}
               <FormField
                 control={form.control}
                 name="country"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Country</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Country</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.country} />
+                    </div>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -201,14 +230,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
-
-              {/* Customer Type */}
               <FormField
                 control={form.control}
                 name="customer"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer Type</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Customer Type</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.customer} />
+                    </div>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -225,14 +255,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
-
-              {/* Opportunity Source */}
               <FormField
                 control={form.control}
                 name="opportunitySource"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Opportunity Source</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Opportunity Source</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.opportunitySource} />
+                    </div>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -250,19 +281,19 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
-
-              {/* Make */}
               <FormField
                 control={form.control}
                 name="make"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Make</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Make</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.make} />
+                    </div>
                     <Select
                       onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedMakeId(value);
-                        // Reset model when make changes
                         form.setValue('model', '');
                       }}
                       value={field.value}
@@ -284,14 +315,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
-
-              {/* Model */}
               <FormField
                 control={form.control}
                 name="model"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Model (Optional)</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Model (Optional)</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.model} />
+                    </div>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
@@ -314,15 +346,16 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
-
-              {/* Year Comparison and Make Year */}
               <div className="flex gap-4 col-span-2">
                 <FormField
                   control={form.control}
                   name="yearComparison"
                   render={({ field }) => (
                     <FormItem className="flex-shrink-0 w-24">
-                      <FormLabel>Compare (Optional)</FormLabel>
+                      <div className="flex items-center">
+                        <FormLabel>Compare</FormLabel>
+                        <FormTooltip description={FIELD_DESCRIPTIONS.yearComparison} />
+                      </div>
                       <Select
                         onValueChange={(value: any) => field.onChange(value || null)}
                         value={field.value || undefined}
@@ -342,13 +375,15 @@ export function ValidateRuleForm() {
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="makeYear"
                   render={({ field }) => (
                     <FormItem className="flex-1">
-                      <FormLabel>Make Year (Optional)</FormLabel>
+                      <div className="flex items-center">
+                        <FormLabel>Make Year</FormLabel>
+                        <FormTooltip description={FIELD_DESCRIPTIONS.makeYear} />
+                      </div>
                       <FormControl>
                         <Input
                           type="number"
@@ -366,14 +401,15 @@ export function ValidateRuleForm() {
                   )}
                 />
               </div>
-
-              {/* Fuel Type */}
               <FormField
                 control={form.control}
                 name="fuelType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fuel Type</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Fuel Type</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.fuelType} />
+                    </div>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -392,14 +428,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
-
-              {/* Tachometer */}
               <FormField
                 control={form.control}
                 name="tachometer"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tachometer</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Tachometer</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.tachometer} />
+                    </div>
                     <FormControl>
                       <Input
                         type="number"
@@ -412,14 +449,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
-
-              {/* Engine */}
               <FormField
                 control={form.control}
                 name="engine"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Engine</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Engine</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.engine} />
+                    </div>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -438,14 +476,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
-
-              {/* Price */}
               <FormField
                 control={form.control}
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price</FormLabel>
+                    <div className="flex items-center">
+                      <FormLabel>Price</FormLabel>
+                      <FormTooltip description={FIELD_DESCRIPTIONS.price} />
+                    </div>
                     <FormControl>
                       <Input
                         type="number"
@@ -459,7 +498,6 @@ export function ValidateRuleForm() {
                 )}
               />
             </div>
-
             {result && (
               <div className="mt-6 p-4 border rounded-lg bg-background">
                 <h3 className="text-lg font-semibold mb-2">Validation Result</h3>
@@ -485,7 +523,6 @@ export function ValidateRuleForm() {
                 </div>
               </div>
             )}
-
             <div className="flex justify-end">
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
                 Validate
