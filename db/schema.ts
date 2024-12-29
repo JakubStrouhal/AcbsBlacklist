@@ -20,7 +20,6 @@ export const operatorEnum = pgEnum('operator', ['=', '!=', 'IN', 'NOT IN', '>', 
 export const rules = pgTable('rules', {
   ruleId: serial('rule_id').primaryKey(),
   ruleName: varchar('rule_name', { length: 255 }).notNull(),
-  creator: varchar('creator', { length: 255 }).notNull().default('Jakub Strouhal'),
   ruleType: ruleTypeEnum('rule_type').notNull(),
   validUntil: timestamp('valid_until'),
   status: ruleStatusEnum('status').notNull().default('Draft'),
