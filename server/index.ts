@@ -43,22 +43,36 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     res.status(status).json({ message });
-    throw err;
+    console.error('Server error:', err);
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client
-  const PORT = 5000;
-  server.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
-  });
+  const startServer = (port: number) => {
+    try {
+      server.listen(port, "0.0.0.0", () => {
+        log(`Server running on port ${port}`);
+      });
+    } catch (err) {
+      console.error(`Failed to start server on port ${port}:`, err);
+      process.exit(1);
+    }
+  };
+
+  // Try to start on port 5000, if fails, try 3000
+  try {
+    startServer(5000);
+  } catch (err) {
+    if (err && (err as any).code === 'EADDRINUSE') {
+      console.log('Port 5000 is in use, trying port 3000...');
+      startServer(3000);
+    } else {
+      console.error('Failed to start server:', err);
+      process.exit(1);
+    }
+  }
 })();
