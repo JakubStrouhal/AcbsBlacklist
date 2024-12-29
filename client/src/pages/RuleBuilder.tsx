@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { ruleValidationSchema, operatorEnum } from "@db/schema";
+import { ruleValidationSchema, operatorEnum, type RuleWithConditions } from "@db/schema";
 import { ConditionBuilder } from "@/components/ConditionBuilder";
 
 interface ConditionGroup {
@@ -77,7 +77,7 @@ export default function RuleBuilder() {
           : null,
         status: existingRule.status,
         action: existingRule.action,
-        actionMessage: existingRule.actionMessage || '',
+        actionMessage: existingRule.actionMessage ?? '',
         customer: existingRule.customer,
         country: existingRule.country,
         opportunitySource: existingRule.opportunitySource,
@@ -87,7 +87,7 @@ export default function RuleBuilder() {
 
       setConditionGroups(
         existingRule.conditionGroups?.map(group => ({
-          description: group.description || '',
+          description: group.description ?? '',
           conditions: group.conditions.map(condition => ({
             parameter: condition.parameter,
             operator: condition.operator,
