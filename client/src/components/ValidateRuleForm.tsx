@@ -40,10 +40,10 @@ export function ValidateRuleForm() {
       country: 'CZ',
       customer: 'Private',
       opportunitySource: 'Webform',
-      make: '',
-      model: '',
       yearComparison: '=',
       makeYear: new Date().getFullYear(),
+      make: '',
+      model: '',
       fuelType: '',
       tachometer: 0,
       engine: '',
@@ -350,7 +350,9 @@ export function ValidateRuleForm() {
             )}
 
             <div className="flex justify-end">
-              <Button type="submit">Validate</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                Validate
+              </Button>
             </div>
           </form>
         </Form>

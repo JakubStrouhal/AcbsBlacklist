@@ -27,7 +27,7 @@ interface ConditionGroup {
 type FormData = {
   ruleName: string;
   ruleType: 'Global' | 'Local';
-  validUntil: string | null;
+  validUntil: Date | null;
   status: 'Active' | 'Inactive' | 'Draft';
   action: 'POZVI - NESLIBUJ' | 'POZVI SWAPEM - NESLIBUJ' | 'NEZVI - NECHCEME';
   actionMessage: string;
@@ -74,7 +74,7 @@ export default function RuleBuilder() {
         ruleName: existingRule.ruleName,
         ruleType: existingRule.ruleType,
         validUntil: existingRule.validUntil
-          ? new Date(existingRule.validUntil).toISOString().split('T')[0]
+          ? new Date(existingRule.validUntil)
           : null,
         status: existingRule.status,
         action: existingRule.action,
@@ -174,7 +174,9 @@ export default function RuleBuilder() {
     try {
       const ruleData = {
         ...data,
-        validUntil: data.validUntil ? new Date(data.validUntil).toISOString() : null,
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        makeYear: null, 
+        lastModifiedDate: new Date(), 
       };
 
       if (id) {
@@ -272,9 +274,9 @@ export default function RuleBuilder() {
                     <FormLabel>Valid Until (Optional)</FormLabel>
                     <FormControl>
                       <Input
-                        type="datetime-local"
+                        type="date"
                         {...field}
-                        value={field.value || ''}
+                        value={field.value ? field.value.toISOString().split('T')[0] : ''}
                       />
                     </FormControl>
                     <FormMessage />
