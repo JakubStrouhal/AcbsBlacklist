@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash, CheckCircle } from "lucide-react";
+import { Plus, Edit, Trash, CheckCircle, FileText } from "lucide-react";
 import { api } from "@/lib/api";
 import { Rule } from "@db/schema";
 import { RPanel } from "@/components/RPanel";
@@ -63,6 +63,9 @@ export default function RulesPage() {
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => navigate("/validate")}>
               <CheckCircle className="mr-2 h-4 w-4" /> Validate Vehicle
+            </Button>
+            <Button variant="outline" onClick={() => window.open('/api-docs', '_blank')}>
+              <FileText className="mr-2 h-4 w-4" /> API Documentation
             </Button>
             <Button 
               onClick={() => navigate("/rules/new")}
