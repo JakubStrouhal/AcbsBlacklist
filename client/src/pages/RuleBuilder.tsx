@@ -1,5 +1,5 @@
 import { useParams, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,9 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { ruleValidationSchema, operatorEnum } from "@db/schema";
+import { ruleValidationSchema, operatorEnum, type Rule } from "@db/schema";
 import { ConditionBuilder } from "@/components/ConditionBuilder";
-import type { Rule } from "@db/schema";
 
 interface ConditionGroup {
   description: string;
@@ -23,18 +22,8 @@ interface ConditionGroup {
   }>;
 }
 
-type FormData = {
-  ruleName: string;
-  ruleType: 'Global' | 'Local';
+type FormData = Omit<Rule, 'ruleId' | 'lastModifiedDate'> & {
   validUntil: string | undefined;
-  status: 'Active' | 'Inactive' | 'Draft';
-  action: 'POZVI - NESLIBUJ' | 'POZVI SWAPEM - NESLIBUJ' | 'NEZVI - NECHCEME';
-  actionMessage: string;
-  customer: 'Private' | 'Company' | 'Any';
-  country: 'CZ' | 'SK' | 'PL' | 'Any';
-  opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
-  createdBy: number;
-  lastModifiedBy: number;
   conditionGroups: ConditionGroup[];
 };
 
@@ -42,6 +31,7 @@ export default function RuleBuilder() {
   const { id } = useParams();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: existingRule } = useQuery({
     queryKey: ['rules', id],
@@ -54,8 +44,8 @@ export default function RuleBuilder() {
     defaultValues: {
       ruleName: existingRule?.ruleName || '',
       ruleType: existingRule?.ruleType || 'Global',
-      validUntil: existingRule?.validUntil 
-        ? new Date(existingRule.validUntil).toISOString().slice(0, 16) 
+      validUntil: existingRule?.validUntil
+        ? new Date(existingRule.validUntil).toISOString().slice(0, 16)
         : undefined,
       status: existingRule?.status || 'Draft',
       action: existingRule?.action || 'POZVI - NESLIBUJ',
@@ -65,33 +55,76 @@ export default function RuleBuilder() {
       opportunitySource: existingRule?.opportunitySource || 'Any',
       createdBy: existingRule?.createdBy || 1,
       lastModifiedBy: 1,
-      conditionGroups: existingRule?.conditionGroups || []
+      conditionGroups: existingRule?.conditionGroups?.map(group => ({
+        description: group.description,
+        conditions: group.conditions.map(condition => ({
+          parameter: condition.parameter,
+          operator: condition.operator,
+          value: condition.value
+        }))
+      })) || []
     }
   });
+
+  const handleConditionGroupsChange = (groups: ConditionGroup[]) => {
+    form.setValue('conditionGroups', groups, { shouldDirty: true });
+  };
+
+  const saveConditionGroups = async () => {
+    if (!id) return;
+
+    try {
+      const groups = form.getValues('conditionGroups');
+
+      // Delete existing condition groups (cascade will handle conditions)
+      await api.deleteRuleConditionGroups(Number(id));
+
+      // Create new condition groups and their conditions
+      for (const group of groups) {
+        if (!group.description || !Array.isArray(group.conditions)) continue;
+
+        const newGroup = await api.createConditionGroup(Number(id), {
+          description: group.description
+        });
+
+        // Create conditions for the group
+        for (const condition of group.conditions) {
+          if (!condition.parameter || !condition.operator || !condition.value) continue;
+
+          await api.createCondition(newGroup.conditionGroupId, {
+            parameter: condition.parameter,
+            operator: condition.operator,
+            value: condition.value
+          });
+        }
+      }
+
+      // Refresh the rule data
+      queryClient.invalidateQueries({ queryKey: ['rules', id] });
+
+      toast({
+        title: "Success",
+        description: "Condition groups saved successfully",
+      });
+    } catch (error) {
+      console.error('Error saving condition groups:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save condition groups",
+        variant: "destructive",
+      });
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     try {
       if (id) {
         // Update existing rule
-        const updatedRule = await api.updateRule(Number(id), {
+        await api.updateRule(Number(id), {
           ...data,
           validUntil: data.validUntil ? new Date(data.validUntil) : null,
           lastModifiedDate: new Date()
         });
-
-        // Update condition groups
-        if (data.conditionGroups && data.conditionGroups.length > 0) {
-          for (const group of data.conditionGroups) {
-            const newGroup = await api.createConditionGroup(updatedRule.ruleId, {
-              description: group.description
-            });
-
-            // Create conditions for the group
-            for (const condition of group.conditions) {
-              await api.createCondition(newGroup.conditionGroupId, condition);
-            }
-          }
-        }
 
         toast({
           title: "Success",
@@ -105,26 +138,15 @@ export default function RuleBuilder() {
           lastModifiedDate: new Date()
         });
 
-        // Create condition groups and conditions
-        if (data.conditionGroups && data.conditionGroups.length > 0) {
-          for (const group of data.conditionGroups) {
-            const newGroup = await api.createConditionGroup(newRule.ruleId, {
-              description: group.description
-            });
-
-            for (const condition of group.conditions) {
-              await api.createCondition(newGroup.conditionGroupId, condition);
-            }
-          }
-        }
-
         toast({
           title: "Success",
           description: "Rule created successfully",
         });
+
+        navigate("/");
       }
-      navigate("/");
     } catch (error) {
+      console.error('Error saving rule:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save rule",
@@ -185,7 +207,7 @@ export default function RuleBuilder() {
                   <FormItem>
                     <FormLabel>Valid Until (Optional)</FormLabel>
                     <FormControl>
-                      <Input 
+                      <Input
                         type="datetime-local"
                         {...field}
                         value={field.value || ''}
@@ -249,9 +271,9 @@ export default function RuleBuilder() {
                   <FormItem>
                     <FormLabel>Action Message</FormLabel>
                     <FormControl>
-                      <Textarea 
+                      <Textarea
                         {...field}
-                        placeholder="Enter detailed message for this action" 
+                        placeholder="Enter detailed message for this action"
                       />
                     </FormControl>
                     <FormMessage />
@@ -331,10 +353,21 @@ export default function RuleBuilder() {
               />
 
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Conditions</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium">Conditions</h3>
+                  {id && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={saveConditionGroups}
+                    >
+                      Save Conditions
+                    </Button>
+                  )}
+                </div>
                 <ConditionBuilder
-                  groups={form.watch('conditionGroups') || []}
-                  onChange={(groups) => form.setValue('conditionGroups', groups)}
+                  groups={form.watch('conditionGroups')}
+                  onChange={handleConditionGroupsChange}
                 />
               </div>
 

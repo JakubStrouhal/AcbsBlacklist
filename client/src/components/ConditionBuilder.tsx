@@ -95,7 +95,7 @@ export function ConditionBuilder({ groups = [], onChange }: Props) {
     onChange(newGroups);
   };
 
-  if (!Array.isArray(groups) || groups.length === 0) {
+  if (!Array.isArray(groups)) {
     return (
       <div className="space-y-4">
         <Alert>

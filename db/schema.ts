@@ -38,7 +38,7 @@ export const conditionGroups = pgTable('condition_groups', {
   conditionGroupId: serial('condition_group_id').primaryKey(),
   ruleId: integer('rule_id')
     .notNull()
-    .references(() => rules.ruleId),
+    .references(() => rules.ruleId, { onDelete: 'cascade' }),
   description: varchar('description', { length: 255 })
 });
 
@@ -47,7 +47,7 @@ export const conditions = pgTable('conditions', {
   conditionId: serial('condition_id').primaryKey(),
   conditionGroupId: integer('condition_group_id')
     .notNull()
-    .references(() => conditionGroups.conditionGroupId),
+    .references(() => conditionGroups.conditionGroupId, { onDelete: 'cascade' }),
   parameter: varchar('parameter', { length: 50 }).notNull(),
   operator: operatorEnum('operator').notNull(),
   value: varchar('value', { length: 255 }).notNull()
@@ -73,14 +73,24 @@ export const conditionsRelations = relations(conditions, ({ one }) => ({
   })
 }));
 
+// Types for the application
+export type Rule = typeof rules.$inferSelect & {
+  conditionGroups?: Array<ConditionGroup & { conditions: Condition[] }>;
+};
+export type NewRule = typeof rules.$inferInsert;
+export type ConditionGroup = typeof conditionGroups.$inferSelect;
+export type NewConditionGroup = typeof conditionGroups.$inferInsert;
+export type Condition = typeof conditions.$inferSelect;
+export type NewCondition = typeof conditions.$inferInsert;
+
 // Validation schemas
-const conditionSchema = z.object({
+export const conditionSchema = z.object({
   parameter: z.string().min(1),
   operator: z.enum(operatorEnum.enumValues),
   value: z.string().min(1)
 });
 
-const conditionGroupSchema = z.object({
+export const conditionGroupSchema = z.object({
   description: z.string(),
   conditions: z.array(conditionSchema)
 });
@@ -103,14 +113,6 @@ export const ruleValidationSchema = z.object({
   lastModifiedBy: z.number(),
   conditionGroups: z.array(conditionGroupSchema).optional()
 });
-
-// Types for the application
-export type Rule = typeof rules.$inferSelect;
-export type NewRule = typeof rules.$inferInsert;
-export type ConditionGroup = typeof conditionGroups.$inferSelect;
-export type NewConditionGroup = typeof conditionGroups.$inferInsert;
-export type Condition = typeof conditions.$inferSelect;
-export type NewCondition = typeof conditions.$inferInsert;
 
 // Audit log for tracking validation attempts
 export const auditLog = pgTable('audit_log', {

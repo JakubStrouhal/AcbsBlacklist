@@ -81,6 +81,58 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Condition Groups
+  app.post("/api/rules/:ruleId/condition-groups", async (req, res) => {
+    try {
+      const [group] = await db
+        .insert(conditionGroups)
+        .values({
+          ruleId: parseInt(req.params.ruleId),
+          description: req.body.description
+        })
+        .returning();
+
+      res.status(201).json(group);
+    } catch (error) {
+      console.error('Error creating condition group:', error);
+      res.status(500).json({ error: "Failed to create condition group" });
+    }
+  });
+
+  app.delete("/api/rules/:ruleId/condition-groups", async (req, res) => {
+    try {
+      // Thanks to ON DELETE CASCADE, this will automatically delete related conditions
+      await db
+        .delete(conditionGroups)
+        .where(eq(conditionGroups.ruleId, parseInt(req.params.ruleId)));
+
+      res.status(204).end();
+    } catch (error) {
+      console.error('Error deleting condition groups:', error);
+      res.status(500).json({ error: "Failed to delete condition groups" });
+    }
+  });
+
+  // Conditions
+  app.post("/api/condition-groups/:groupId/conditions", async (req, res) => {
+    try {
+      const [condition] = await db
+        .insert(conditions)
+        .values({
+          conditionGroupId: parseInt(req.params.groupId),
+          parameter: req.body.parameter,
+          operator: req.body.operator,
+          value: req.body.value
+        })
+        .returning();
+
+      res.status(201).json(condition);
+    } catch (error) {
+      console.error('Error creating condition:', error);
+      res.status(500).json({ error: "Failed to create condition" });
+    }
+  });
+
   // Vehicle Validation
   app.post("/api/rules/validate", async (req, res) => {
     try {
@@ -139,44 +191,6 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error validating vehicle:', error);
       res.status(500).json({ error: "Failed to validate vehicle" });
-    }
-  });
-
-  // Condition Groups
-  app.post("/api/rules/:ruleId/condition-groups", async (req, res) => {
-    try {
-      const [group] = await db
-        .insert(conditionGroups)
-        .values({
-          ruleId: parseInt(req.params.ruleId),
-          description: req.body.description
-        })
-        .returning();
-
-      res.status(201).json(group);
-    } catch (error) {
-      console.error('Error creating condition group:', error);
-      res.status(500).json({ error: "Failed to create condition group" });
-    }
-  });
-
-  // Conditions
-  app.post("/api/condition-groups/:groupId/conditions", async (req, res) => {
-    try {
-      const [condition] = await db
-        .insert(conditions)
-        .values({
-          conditionGroupId: parseInt(req.params.groupId),
-          parameter: req.body.parameter,
-          operator: req.body.operator,
-          value: req.body.value
-        })
-        .returning();
-
-      res.status(201).json(condition);
-    } catch (error) {
-      console.error('Error creating condition:', error);
-      res.status(500).json({ error: "Failed to create condition" });
     }
   });
 

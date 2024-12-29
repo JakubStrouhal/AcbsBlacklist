@@ -1,4 +1,4 @@
-import type { Rule, ConditionGroup, Condition } from '@db/schema';
+import type { Rule, ConditionGroup, Condition, operatorEnum } from '@db/schema';
 
 export interface ValidationRequest {
   ruleType: 'Global' | 'Local';
@@ -40,7 +40,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 export const api = {
   // Rules
   getRules: () => fetchApi<Rule[]>('/rules'),
-  getRule: (id: number) => fetchApi<Rule>(`/rules/${id}`),
+  getRule: (id: number) => fetchApi<Rule & { conditionGroups: (ConditionGroup & { conditions: Condition[] })[] }>(`/rules/${id}`),
   createRule: (rule: Omit<Rule, 'ruleId'>) => fetchApi<Rule>('/rules', {
     method: 'POST',
     body: JSON.stringify(rule),
@@ -58,6 +58,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(group),
     }),
+  deleteRuleConditionGroups: (ruleId: number) =>
+    fetchApi(`/rules/${ruleId}/condition-groups`, { method: 'DELETE' }),
 
   // Conditions
   createCondition: (groupId: number, condition: Pick<Condition, 'parameter' | 'operator' | 'value'>) =>
