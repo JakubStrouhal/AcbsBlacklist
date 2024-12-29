@@ -93,6 +93,10 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
+      if (!group) {
+        return res.status(500).json({ error: "Failed to create condition group" });
+      }
+
       res.status(201).json(group);
     } catch (error) {
       console.error('Error creating condition group:', error);
@@ -102,12 +106,11 @@ export function registerRoutes(app: Express): Server {
 
   app.delete("/api/rules/:ruleId/condition-groups", async (req, res) => {
     try {
-      // Thanks to ON DELETE CASCADE, this will automatically delete related conditions
       await db
         .delete(conditionGroups)
         .where(eq(conditionGroups.ruleId, parseInt(req.params.ruleId)));
 
-      res.status(204).end();
+      res.status(200).json({ message: "Condition groups deleted successfully" });
     } catch (error) {
       console.error('Error deleting condition groups:', error);
       res.status(500).json({ error: "Failed to delete condition groups" });
@@ -126,6 +129,10 @@ export function registerRoutes(app: Express): Server {
           value: req.body.value
         })
         .returning();
+
+      if (!condition) {
+        return res.status(500).json({ error: "Failed to create condition" });
+      }
 
       res.status(201).json(condition);
     } catch (error) {

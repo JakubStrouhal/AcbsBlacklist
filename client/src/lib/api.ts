@@ -34,26 +34,37 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
     },
   });
 
+  const text = await response.text();
+
   if (!response.ok) {
-    throw new Error(await response.text());
+    throw new Error(text || response.statusText);
   }
 
-  return response.json();
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch (error) {
+    console.error('Error parsing JSON response:', error);
+    throw new Error('Invalid JSON response from server');
+  }
 }
 
 export const api = {
   // Rules
   getRules: () => fetchApi<Rule[]>('/rules'),
+
   getRule: (id: number) => fetchApi<RuleWithConditions>(`/rules/${id}`),
+
   createRule: (rule: Omit<Rule, 'ruleId'>) => fetchApi<Rule>('/rules', {
     method: 'POST',
     body: JSON.stringify(rule),
   }),
+
   updateRule: (id: number, rule: Partial<Omit<Rule, 'ruleId'>>) => 
     fetchApi<Rule>(`/rules/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(rule),
     }),
+
   deleteRule: (id: number) => fetchApi(`/rules/${id}`, { method: 'DELETE' }),
 
   // Condition Groups
@@ -62,8 +73,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(group),
     }),
+
   deleteRuleConditionGroups: (ruleId: number) =>
-    fetchApi(`/rules/${ruleId}/condition-groups`, { method: 'DELETE' }),
+    fetchApi<{message: string}>(`/rules/${ruleId}/condition-groups`, { method: 'DELETE' }),
 
   // Conditions
   createCondition: (groupId: number, condition: Pick<Condition, 'parameter' | 'operator' | 'value'>) =>

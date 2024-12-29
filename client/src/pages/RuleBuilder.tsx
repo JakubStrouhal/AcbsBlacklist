@@ -69,12 +69,11 @@ export default function RuleBuilder() {
 
   useEffect(() => {
     if (existingRule) {
-      // Reset form data
       form.reset({
         ruleName: existingRule.ruleName,
         ruleType: existingRule.ruleType,
-        validUntil: existingRule.validUntil 
-          ? new Date(existingRule.validUntil).toISOString().slice(0, 16) 
+        validUntil: existingRule.validUntil
+          ? new Date(existingRule.validUntil).toISOString().slice(0, 16)
           : null,
         status: existingRule.status,
         action: existingRule.action,
@@ -86,7 +85,6 @@ export default function RuleBuilder() {
         lastModifiedBy: existingRule.lastModifiedBy,
       });
 
-      // Set condition groups separately from form state
       setConditionGroups(
         existingRule.conditionGroups?.map(group => ({
           description: group.description || '',
@@ -175,25 +173,36 @@ export default function RuleBuilder() {
     try {
       const ruleData = {
         ...data,
-        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        validUntil: data.validUntil ? new Date(data.validUntil).toISOString() : null,
       };
 
       if (id) {
         await api.updateRule(Number(id), ruleData);
-        
-        // Save all condition groups
-        await api.deleteRuleConditionGroups(Number(id));
-        for (const group of conditionGroups) {
-          const newGroup = await api.createConditionGroup(Number(id), {
-            description: group.description
-          });
-          
-          for (const condition of group.conditions) {
-            if (!condition.parameter || !condition.operator || !condition.value) continue;
-            await api.createCondition(newGroup.conditionGroupId, condition);
+
+        try {
+          await api.deleteRuleConditionGroups(Number(id));
+          for (const group of conditionGroups) {
+            if (!group.description) continue;
+
+            const newGroup = await api.createConditionGroup(Number(id), {
+              description: group.description
+            });
+
+            for (const condition of group.conditions) {
+              if (!condition.parameter || !condition.operator || !condition.value) continue;
+              await api.createCondition(newGroup.conditionGroupId, condition);
+            }
           }
+        } catch (groupError) {
+          console.error('Error saving condition groups:', groupError);
+          toast({
+            title: "Warning",
+            description: "Rule saved but there was an error saving condition groups",
+            variant: "destructive",
+          });
+          return;
         }
-        
+
         toast({
           title: "Success",
           description: "Rule and conditions updated successfully",

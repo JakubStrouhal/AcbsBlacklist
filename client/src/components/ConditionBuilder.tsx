@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Minus, AlertCircle, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { operatorEnum } from "@db/schema";
 
 interface Condition {
@@ -47,11 +48,15 @@ const OPERATORS: Array<{ value: typeof operatorEnum.enumValues[number]; label: s
 ];
 
 export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing = false }: Props) {
-  const addGroup = () => {
+  const addGroup = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     onChange([...groups, { description: '', conditions: [] }]);
   };
 
-  const removeGroup = (groupIndex: number) => {
+  const removeGroup = (groupIndex: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     onChange(groups.filter((_, i) => i !== groupIndex));
   };
 
@@ -61,7 +66,9 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
     onChange(newGroups);
   };
 
-  const addCondition = (groupIndex: number) => {
+  const addCondition = (groupIndex: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const newGroups = [...groups];
     newGroups[groupIndex] = {
       ...newGroups[groupIndex],
@@ -77,7 +84,9 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
     onChange(newGroups);
   };
 
-  const removeCondition = (groupIndex: number, conditionIndex: number) => {
+  const removeCondition = (groupIndex: number, conditionIndex: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const newGroups = [...groups];
     newGroups[groupIndex] = {
       ...newGroups[groupIndex],
@@ -118,7 +127,7 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
             No condition groups defined. Add a group to start defining conditions.
           </AlertDescription>
         </Alert>
-        <Button onClick={addGroup}>
+        <Button type="button" onClick={addGroup}>
           <Plus className="mr-2 h-4 w-4" /> Add Condition Group
         </Button>
       </div>
@@ -129,23 +138,15 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
     <div className="space-y-4">
       {groups.map((group, groupIndex) => (
         <Card key={groupIndex}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium">
               Condition Group {groupIndex + 1}
             </CardTitle>
-            {isEditing && onSaveGroup && (
-              <Button
-                type="button"
-                onClick={() => onSaveGroup(groupIndex)}
-                className="mr-2 bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Save className="mr-2 h-4 w-4" /> Save Group
-              </Button>
-            )}
             <Button
+              type="button"
               variant="ghost"
               size="sm"
-              onClick={() => removeGroup(groupIndex)}
+              onClick={(e) => removeGroup(groupIndex, e)}
             >
               <Minus className="h-4 w-4" />
             </Button>
@@ -224,26 +225,48 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
                   />
 
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => removeCondition(groupIndex, conditionIndex)}
+                    onClick={(e) => removeCondition(groupIndex, conditionIndex, e)}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
                 </div>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => addCondition(groupIndex)}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Condition
-              </Button>
+
+              <Separator className="my-4" />
+
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => addCondition(groupIndex, e)}
+                  className="w-full"
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Add Condition
+                </Button>
+
+                {isEditing && onSaveGroup && (
+                  <Button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onSaveGroup(groupIndex);
+                    }}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Save className="mr-2 h-4 w-4" /> Save Group
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
       ))}
-      <Button onClick={addGroup} variant="outline" className="w-full">
+      <Button type="button" onClick={addGroup} variant="outline" className="w-full">
         <Plus className="mr-2 h-4 w-4" /> Add Condition Group
       </Button>
     </div>
