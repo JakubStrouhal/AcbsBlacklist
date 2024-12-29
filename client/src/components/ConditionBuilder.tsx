@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Minus, Save } from "lucide-react";
+import { Plus, Minus, Save, GitMerge, GitBranch } from "lucide-react";
 import { operatorEnum } from "@db/schema";
+import { cn } from "@/lib/utils";
 
 interface Condition {
   parameter: string;
@@ -111,15 +112,15 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
     const conditions = newGroups[groupIndex].conditions;
 
     if (field === 'orGroup') {
-      // Update the current condition's orGroup
       conditions[conditionIndex] = {
         ...conditions[conditionIndex],
         orGroup: value as number | null
       };
 
-      // Update all subsequent conditions in the same group
+      // Update all subsequent conditions in the same group until we hit a condition with a different orGroup
       if (value !== null) {
         for (let i = conditionIndex + 1; i < conditions.length; i++) {
+          if (conditions[i].orGroup !== conditions[i-1].orGroup) break;
           conditions[i].orGroup = value as number;
         }
       }
@@ -164,21 +165,36 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
               {group.conditions.map((condition, conditionIndex) => (
                 <div key={conditionIndex} className="flex items-center gap-2">
                   {conditionIndex > 0 && (
-                    <Select
-                      value={condition.orGroup !== null ? 'or' : 'and'}
-                      onValueChange={(value) => {
-                        const newOrGroup = value === 'or' ? conditionIndex : null;
-                        updateCondition(groupIndex, conditionIndex, 'orGroup', newOrGroup);
-                      }}
-                    >
-                      <SelectTrigger className="w-[80px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="and">AND</SelectItem>
-                        <SelectItem value="or">OR</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => updateCondition(groupIndex, conditionIndex, 'orGroup', null)}
+                        className={cn(
+                          "w-[80px] transition-colors",
+                          condition.orGroup === null
+                            ? "bg-blue-600 hover:bg-blue-700 text-white"
+                            : "bg-muted text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        <GitMerge className="mr-1 h-4 w-4" />
+                        AND
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => updateCondition(groupIndex, conditionIndex, 'orGroup', conditionIndex)}
+                        className={cn(
+                          "w-[80px] transition-colors",
+                          condition.orGroup !== null
+                            ? "bg-orange-600 hover:bg-orange-700 text-white"
+                            : "bg-muted text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        <GitBranch className="mr-1 h-4 w-4" />
+                        OR
+                      </Button>
+                    </div>
                   )}
 
                   <Select
