@@ -57,25 +57,32 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
 
   const updateGroupDescription = (groupIndex: number, description: string) => {
     const newGroups = [...groups];
-    newGroups[groupIndex].description = description;
+    newGroups[groupIndex] = { ...newGroups[groupIndex], description };
     onChange(newGroups);
   };
 
   const addCondition = (groupIndex: number) => {
     const newGroups = [...groups];
-    newGroups[groupIndex].conditions.push({
-      parameter: '',
-      operator: '=' as typeof operatorEnum.enumValues[number],
-      value: ''
-    });
+    newGroups[groupIndex] = {
+      ...newGroups[groupIndex],
+      conditions: [
+        ...newGroups[groupIndex].conditions,
+        {
+          parameter: '',
+          operator: '=' as typeof operatorEnum.enumValues[number],
+          value: ''
+        }
+      ]
+    };
     onChange(newGroups);
   };
 
   const removeCondition = (groupIndex: number, conditionIndex: number) => {
     const newGroups = [...groups];
-    newGroups[groupIndex].conditions = newGroups[groupIndex].conditions.filter(
-      (_, i) => i !== conditionIndex
-    );
+    newGroups[groupIndex] = {
+      ...newGroups[groupIndex],
+      conditions: newGroups[groupIndex].conditions.filter((_, i) => i !== conditionIndex)
+    };
     onChange(newGroups);
   };
 
@@ -86,11 +93,19 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
     value: string
   ) => {
     const newGroups = [...groups];
-    if (field === 'operator' && operatorEnum.enumValues.includes(value as any)) {
-      newGroups[groupIndex].conditions[conditionIndex][field] = value as typeof operatorEnum.enumValues[number];
-    } else if (field !== 'operator') {
-      (newGroups[groupIndex].conditions[conditionIndex] as any)[field] = value;
-    }
+    newGroups[groupIndex] = {
+      ...newGroups[groupIndex],
+      conditions: newGroups[groupIndex].conditions.map((condition, i) => {
+        if (i === conditionIndex) {
+          if (field === 'operator' && operatorEnum.enumValues.includes(value as any)) {
+            return { ...condition, [field]: value as typeof operatorEnum.enumValues[number] };
+          } else if (field !== 'operator') {
+            return { ...condition, [field]: value };
+          }
+        }
+        return condition;
+      })
+    };
     onChange(newGroups);
   };
 
@@ -118,6 +133,15 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
             <CardTitle className="text-sm font-medium">
               Condition Group {groupIndex + 1}
             </CardTitle>
+            {isEditing && onSaveGroup && (
+              <Button
+                type="button"
+                onClick={() => onSaveGroup(groupIndex)}
+                className="mr-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Save className="mr-2 h-4 w-4" /> Save Group
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -208,24 +232,13 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
                   </Button>
                 </div>
               ))}
-              <div className="flex justify-between items-center pt-4 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addCondition(groupIndex)}
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Add Condition
-                </Button>
-                {isEditing && onSaveGroup && (
-                  <Button
-                    type="button"
-                    onClick={() => onSaveGroup(groupIndex)}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <Save className="mr-2 h-4 w-4" /> Save Conditions
-                  </Button>
-                )}
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => addCondition(groupIndex)}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Add Condition
+              </Button>
             </div>
           </CardContent>
         </Card>
