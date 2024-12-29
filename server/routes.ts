@@ -4,8 +4,84 @@ import { db } from "@db";
 import { rules, conditionGroups, conditions, auditLog, makes, models, fuelTypes, engineTypes } from "@db/schema";
 import { eq, and, gt, lt } from "drizzle-orm";
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './swagger';
+
+/**
+ * @openapi
+ * /api/rules/validate:
+ *   post:
+ *     summary: Validate a vehicle against business rules
+ *     tags: [Validation]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ruleType:
+ *                 type: string
+ *                 enum: [Global, Local]
+ *               country:
+ *                 type: string
+ *                 enum: [CZ, SK, PL, Any]
+ *               customer:
+ *                 type: string
+ *                 enum: [Private, Company, Any]
+ *               opportunitySource:
+ *                 type: string
+ *                 enum: [Ticking, Webform, SMS, Any]
+ *               make:
+ *                 type: string
+ *               model:
+ *                 type: string
+ *               yearComparison:
+ *                 type: string
+ *                 enum: ['=', '>', '<']
+ *               makeYear:
+ *                 type: number
+ *               fuelType:
+ *                 type: string
+ *               tachometer:
+ *                 type: number
+ *               engine:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Validation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 isMatch:
+ *                   type: boolean
+ *                 action:
+ *                   type: string
+ *                   nullable: true
+ *                 actionMessage:
+ *                   type: string
+ *                   nullable: true
+ */
 
 export function registerRoutes(app: Express): Server {
+  // Serve Swagger documentation
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+    swaggerOptions: {
+      security: [{ ApiKeyAuth: [] }],
+      securityDefinitions: {
+        ApiKeyAuth: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'X-API-Key',
+          description: 'API key for authentication'
+        }
+      }
+    }
+  }));
   // Enable CORS
   app.use(cors({
     origin: true,
