@@ -7,9 +7,8 @@ export interface ValidationRequest {
   customer: 'Private' | 'Company' | 'Any';
   make: string;
   model?: string;
+  yearComparison: '=' | '>' | '<';
   makeYear: number;
-  tachometer: number;
-  fuelType: string;
   price: number;
 }
 

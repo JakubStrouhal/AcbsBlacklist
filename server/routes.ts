@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
 import { rules, conditionGroups, conditions, auditLog } from "@db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gt, lt } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
   // Rules CRUD
@@ -158,12 +158,24 @@ export function registerRoutes(app: Express): Server {
         );
 
       // Find matching rules based on basic criteria
-      const matches = applicableRules.filter(rule =>
-        (rule.country === 'Any' || rule.country === validation.country) &&
-        (rule.customer === 'Any' || rule.customer === validation.customer) &&
-        (rule.opportunitySource === 'Any' || rule.opportunitySource === validation.opportunitySource) &&
-        (!rule.validUntil || new Date(rule.validUntil) > new Date())
-      );
+      const matches = applicableRules.filter(rule => {
+        const basicMatch = (rule.country === 'Any' || rule.country === validation.country) &&
+          (rule.customer === 'Any' || rule.customer === validation.customer) &&
+          (rule.opportunitySource === 'Any' || rule.opportunitySource === validation.opportunitySource) &&
+          (!rule.validUntil || new Date(rule.validUntil) > new Date());
+
+        // Year comparison logic
+        let yearMatch = true;
+        if (validation.yearComparison === '=') {
+          yearMatch = validation.makeYear === rule.makeYear; //Fixed comparison to rule.makeYear
+        } else if (validation.yearComparison === '>') {
+          yearMatch = validation.makeYear > rule.makeYear; //Fixed comparison to rule.makeYear
+        } else if (validation.yearComparison === '<') {
+          yearMatch = validation.makeYear < rule.makeYear; //Fixed comparison to rule.makeYear
+        }
+
+        return basicMatch && yearMatch;
+      });
 
       if (matches.length > 0) {
         const rule = matches[0]; // Use the first matching rule

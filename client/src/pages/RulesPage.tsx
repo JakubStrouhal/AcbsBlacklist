@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash } from "lucide-react";
+import { Plus, Edit, Trash, CheckCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { Rule } from "@db/schema";
 import { RPanel } from "@/components/RPanel";
@@ -59,6 +59,9 @@ export default function RulesPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Vehicle Validation Rules</CardTitle>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/validate")}>
+              <CheckCircle className="mr-2 h-4 w-4" /> Validate Vehicle
+            </Button>
             <Button onClick={() => navigate("/rules/new")}>
               <Plus className="mr-2 h-4 w-4" /> Add New Rule
             </Button>
