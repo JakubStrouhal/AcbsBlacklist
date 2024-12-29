@@ -117,12 +117,11 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
         orGroup: value as number | null
       };
 
-      // If this isn't the last condition, update the next condition's orGroup to match
-      if (conditionIndex < conditions.length - 1) {
-        conditions[conditionIndex + 1] = {
-          ...conditions[conditionIndex + 1],
-          orGroup: value as number | null
-        };
+      // Update all subsequent conditions in the same group
+      if (value !== null) {
+        for (let i = conditionIndex + 1; i < conditions.length; i++) {
+          conditions[i].orGroup = value as number;
+        }
       }
     } else {
       conditions[conditionIndex] = {
@@ -163,83 +162,78 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
               />
 
               {group.conditions.map((condition, conditionIndex) => (
-                <div key={conditionIndex}>
+                <div key={conditionIndex} className="flex items-center gap-2">
                   {conditionIndex > 0 && (
-                    <div className="flex justify-center my-2">
-                      <Select
-                        value={condition.orGroup !== null ? 'or' : 'and'}
-                        onValueChange={(value) => {
-                          const newOrGroup = value === 'or' ? 
-                            (group.conditions[conditionIndex - 1]?.orGroup ?? conditionIndex) : 
-                            null;
-                          updateCondition(groupIndex, conditionIndex, 'orGroup', newOrGroup);
-                        }}
-                      >
-                        <SelectTrigger className="w-[100px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="and">AND</SelectItem>
-                          <SelectItem value="or">OR</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Select
+                      value={condition.orGroup !== null ? 'or' : 'and'}
+                      onValueChange={(value) => {
+                        const newOrGroup = value === 'or' ? conditionIndex : null;
+                        updateCondition(groupIndex, conditionIndex, 'orGroup', newOrGroup);
+                      }}
+                    >
+                      <SelectTrigger className="w-[80px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="and">AND</SelectItem>
+                        <SelectItem value="or">OR</SelectItem>
+                      </SelectContent>
+                    </Select>
                   )}
 
-                  <div className="flex items-center space-x-2">
-                    <Select
-                      value={condition.parameter}
-                      onValueChange={(value) =>
-                        updateCondition(groupIndex, conditionIndex, 'parameter', value)
-                      }
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Select Parameter" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PARAMETERS.map((param) => (
-                          <SelectItem key={param.value} value={param.value}>
-                            {param.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <Select
+                    value={condition.parameter}
+                    onValueChange={(value) =>
+                      updateCondition(groupIndex, conditionIndex, 'parameter', value)
+                    }
+                  >
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Select Parameter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PARAMETERS.map((param) => (
+                        <SelectItem key={param.value} value={param.value}>
+                          {param.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                    <Select
-                      value={condition.operator}
-                      onValueChange={(value) =>
-                        updateCondition(groupIndex, conditionIndex, 'operator', value)
-                      }
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Select Operator" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {OPERATORS.map((op) => (
-                          <SelectItem key={op.value} value={op.value}>
-                            {op.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <Select
+                    value={condition.operator}
+                    onValueChange={(value) =>
+                      updateCondition(groupIndex, conditionIndex, 'operator', value)
+                    }
+                  >
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Select Operator" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {OPERATORS.map((op) => (
+                        <SelectItem key={op.value} value={op.value}>
+                          {op.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                    <Input
-                      placeholder="Value"
-                      value={condition.value}
-                      onChange={(e) =>
-                        updateCondition(groupIndex, conditionIndex, 'value', e.target.value)
-                      }
-                    />
+                  <Input
+                    className="flex-1"
+                    placeholder="Value"
+                    value={condition.value}
+                    onChange={(e) =>
+                      updateCondition(groupIndex, conditionIndex, 'value', e.target.value)
+                    }
+                  />
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeCondition(groupIndex, conditionIndex)}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeCondition(groupIndex, conditionIndex)}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
 
