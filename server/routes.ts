@@ -1,16 +1,82 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { rules, conditionGroups, conditions, auditLog } from "@db/schema";
+import { rules, conditionGroups, conditions, auditLog, makes, models, fuelTypes, engineTypes } from "@db/schema";
 import { eq, and, gt, lt } from "drizzle-orm";
 import cors from 'cors';
 
 export function registerRoutes(app: Express): Server {
-  // Enable CORS for all routes
+  // Enable CORS
   app.use(cors({
     origin: true,
     credentials: true
   }));
+
+  // Vehicle data endpoints
+  app.get("/api/vehicle/makes", async (req, res) => {
+    try {
+      const allMakes = await db
+        .select()
+        .from(makes)
+        .where(eq(makes.isActive, true));
+      res.json(allMakes);
+    } catch (error) {
+      console.error('Error fetching makes:', error);
+      res.status(500).json({ error: "Failed to fetch makes" });
+    }
+  });
+
+  app.get("/api/vehicle/models/:makeId", async (req, res) => {
+    try {
+      const makeModels = await db
+        .select()
+        .from(models)
+        .where(
+          and(
+            eq(models.makeId, parseInt(req.params.makeId)),
+            eq(models.isActive, true)
+          )
+        );
+      res.json(makeModels);
+    } catch (error) {
+      console.error('Error fetching models:', error);
+      res.status(500).json({ error: "Failed to fetch models" });
+    }
+  });
+
+  app.get("/api/vehicle/fuel-types", async (req, res) => {
+    try {
+      const allFuelTypes = await db
+        .select()
+        .from(fuelTypes)
+        .where(eq(fuelTypes.isActive, true));
+      res.json(allFuelTypes);
+    } catch (error) {
+      console.error('Error fetching fuel types:', error);
+      res.status(500).json({ error: "Failed to fetch fuel types" });
+    }
+  });
+
+  app.get("/api/vehicle/engine-types", async (req, res) => {
+    try {
+      const allEngineTypes = await db
+        .select({
+          id: engineTypes.id,
+          name: engineTypes.name,
+          fuelTypeId: engineTypes.fuelTypeId,
+          displacement: engineTypes.displacement,
+          power: engineTypes.power,
+          fuelTypeName: fuelTypes.name,
+        })
+        .from(engineTypes)
+        .leftJoin(fuelTypes, eq(engineTypes.fuelTypeId, fuelTypes.id))
+        .where(eq(engineTypes.isActive, true));
+      res.json(allEngineTypes);
+    } catch (error) {
+      console.error('Error fetching engine types:', error);
+      res.status(500).json({ error: "Failed to fetch engine types" });
+    }
+  });
 
   // Rules CRUD
   app.get("/api/rules", async (req, res) => {
