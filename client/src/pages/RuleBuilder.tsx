@@ -173,7 +173,6 @@ export default function RuleBuilder() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      // Prepare rule data without condition groups
       const ruleData = {
         ...data,
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
@@ -181,9 +180,23 @@ export default function RuleBuilder() {
 
       if (id) {
         await api.updateRule(Number(id), ruleData);
+        
+        // Save all condition groups
+        await api.deleteRuleConditionGroups(Number(id));
+        for (const group of conditionGroups) {
+          const newGroup = await api.createConditionGroup(Number(id), {
+            description: group.description
+          });
+          
+          for (const condition of group.conditions) {
+            if (!condition.parameter || !condition.operator || !condition.value) continue;
+            await api.createCondition(newGroup.conditionGroupId, condition);
+          }
+        }
+        
         toast({
           title: "Success",
-          description: "Rule updated successfully",
+          description: "Rule and conditions updated successfully",
         });
       } else {
         const newRule = await api.createRule(ruleData);
