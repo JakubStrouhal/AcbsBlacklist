@@ -57,12 +57,17 @@ export default function RulesPage() {
     <div className="container mx-auto py-6 relative">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Vehicle Validation Rules</CardTitle>
+          <div>
+            <CardTitle className="text-2xl">ACBS Buying Rules</CardTitle>
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => navigate("/validate")}>
               <CheckCircle className="mr-2 h-4 w-4" /> Validate Vehicle
             </Button>
-            <Button onClick={() => navigate("/rules/new")}>
+            <Button 
+              onClick={() => navigate("/rules/new")}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               <Plus className="mr-2 h-4 w-4" /> Add New Rule
             </Button>
           </div>

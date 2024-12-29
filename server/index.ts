@@ -1,13 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { createServer } from "http";
+import { db } from "@db";
+import { sql } from "drizzle-orm";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Enhanced request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -40,6 +40,10 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
+    // Verify database connection
+    await db.execute(sql`SELECT 1`);
+    log("Database connection successful");
+
     log("Starting server initialization...");
     const server = registerRoutes(app);
 
@@ -63,19 +67,8 @@ app.use((req, res, next) => {
       log("Static file serving setup complete");
     }
 
-    // Add proper error handling for port binding
-    const PORT = 5000;
-    server.on('error', (error: NodeJS.ErrnoException) => {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use. Please free up the port and try again.`);
-        process.exit(1);
-      } else {
-        console.error('Server error:', error);
-        process.exit(1);
-      }
-    });
-
     // Start listening
+    const PORT = 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on http://0.0.0.0:${PORT}`);
     });
