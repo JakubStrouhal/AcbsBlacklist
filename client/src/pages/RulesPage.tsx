@@ -45,6 +45,7 @@ export default function RulesPage() {
                 <TableHead>Status</TableHead>
                 <TableHead>Action</TableHead>
                 <TableHead>Country</TableHead>
+                <TableHead>Creator</TableHead>
                 <TableHead>Modified</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -65,6 +66,7 @@ export default function RulesPage() {
                   </TableCell>
                   <TableCell>{rule.action}</TableCell>
                   <TableCell>{rule.country}</TableCell>
+                  <TableCell>{rule.creator}</TableCell>
                   <TableCell>
                     {new Date(rule.lastModifiedDate).toLocaleDateString()}
                   </TableCell>
