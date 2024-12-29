@@ -3,17 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Minus, AlertCircle, Save, Link2, Link2Off } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
+import { Plus, Minus, Save } from "lucide-react";
 import { operatorEnum } from "@db/schema";
-import { Badge } from "@/components/ui/badge";
 
 interface Condition {
   parameter: string;
   operator: typeof operatorEnum.enumValues[number];
   value: string;
-  orGroup?: number | null;
+  orGroup: number | null;
 }
 
 interface ConditionGroup {
@@ -50,20 +47,14 @@ const OPERATORS: Array<{ value: typeof operatorEnum.enumValues[number]; label: s
 ];
 
 export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing = false }: Props) {
-  const [selectedConditions, setSelectedConditions] = useState<{[key: number]: Set<number>}>({});
-
   const addGroup = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     onChange([...groups, { description: '', conditions: [] }]);
-    setSelectedConditions({ ...selectedConditions, [groups.length]: new Set() });
   };
 
   const removeGroup = (groupIndex: number) => {
     onChange(groups.filter((_, i) => i !== groupIndex));
-    const newSelected = { ...selectedConditions };
-    delete newSelected[groupIndex];
-    setSelectedConditions(newSelected);
   };
 
   const updateGroupDescription = (groupIndex: number, description: string) => {
@@ -74,15 +65,19 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
 
   const addCondition = (groupIndex: number) => {
     const newGroups = [...groups];
+    const currentConditions = newGroups[groupIndex].conditions;
+    const lastOrGroup = currentConditions.length > 0 ? 
+      currentConditions[currentConditions.length - 1].orGroup : null;
+
     newGroups[groupIndex] = {
       ...newGroups[groupIndex],
       conditions: [
-        ...newGroups[groupIndex].conditions,
+        ...currentConditions,
         {
           parameter: '',
           operator: '=' as typeof operatorEnum.enumValues[number],
           value: '',
-          orGroup: null
+          orGroup: lastOrGroup
         }
       ]
     };
@@ -91,83 +86,54 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
 
   const removeCondition = (groupIndex: number, conditionIndex: number) => {
     const newGroups = [...groups];
+    const conditions = newGroups[groupIndex].conditions;
+
+    // If we're removing a condition, we need to update the orGroup of the next condition
+    if (conditionIndex < conditions.length - 1) {
+      conditions[conditionIndex + 1].orGroup = conditionIndex > 0 ? 
+        conditions[conditionIndex - 1].orGroup : null;
+    }
+
     newGroups[groupIndex] = {
       ...newGroups[groupIndex],
-      conditions: newGroups[groupIndex].conditions.filter((_, i) => i !== conditionIndex)
+      conditions: conditions.filter((_, i) => i !== conditionIndex)
     };
     onChange(newGroups);
-
-    // Remove condition from selected set
-    const newSelected = new Set(selectedConditions[groupIndex]);
-    newSelected.delete(conditionIndex);
-    setSelectedConditions({ ...selectedConditions, [groupIndex]: newSelected });
   };
 
   const updateCondition = (
     groupIndex: number,
     conditionIndex: number,
     field: keyof Condition,
-    value: string
+    value: string | number | null
   ) => {
     const newGroups = [...groups];
-    newGroups[groupIndex] = {
-      ...newGroups[groupIndex],
-      conditions: newGroups[groupIndex].conditions.map((condition, i) => {
-        if (i === conditionIndex) {
-          if (field === 'operator' && operatorEnum.enumValues.includes(value as any)) {
-            return { ...condition, [field]: value as typeof operatorEnum.enumValues[number] };
-          } else if (field !== 'operator') {
-            return { ...condition, [field]: value };
-          }
-        }
-        return condition;
-      })
-    };
-    onChange(newGroups);
-  };
+    const conditions = newGroups[groupIndex].conditions;
 
-  const toggleConditionSelection = (groupIndex: number, conditionIndex: number) => {
-    const newSelected = new Set(selectedConditions[groupIndex] || new Set());
-    if (newSelected.has(conditionIndex)) {
-      newSelected.delete(conditionIndex);
+    if (field === 'orGroup') {
+      // Update the current condition's orGroup
+      conditions[conditionIndex] = {
+        ...conditions[conditionIndex],
+        orGroup: value as number | null
+      };
+
+      // If this isn't the last condition, update the next condition's orGroup to match
+      if (conditionIndex < conditions.length - 1) {
+        conditions[conditionIndex + 1] = {
+          ...conditions[conditionIndex + 1],
+          orGroup: value as number | null
+        };
+      }
     } else {
-      newSelected.add(conditionIndex);
+      conditions[conditionIndex] = {
+        ...conditions[conditionIndex],
+        [field]: field === 'operator' && operatorEnum.enumValues.includes(value as any) 
+          ? value 
+          : value
+      };
     }
-    setSelectedConditions({ ...selectedConditions, [groupIndex]: newSelected });
-  };
 
-  const groupSelectedConditions = (groupIndex: number) => {
-    const selected = selectedConditions[groupIndex];
-    if (!selected || selected.size < 2) return;
-
-    const newGroups = [...groups];
-    const orGroupId = Math.max(...newGroups[groupIndex].conditions.map(c => c.orGroup || 0)) + 1;
-
-    newGroups[groupIndex] = {
-      ...newGroups[groupIndex],
-      conditions: newGroups[groupIndex].conditions.map((condition, idx) => {
-        if (selected.has(idx)) {
-          return { ...condition, orGroup: orGroupId };
-        }
-        return condition;
-      })
-    };
-
-    onChange(newGroups);
-    setSelectedConditions({ ...selectedConditions, [groupIndex]: new Set() });
-  };
-
-  const ungroupConditions = (groupIndex: number, orGroupId: number) => {
-    const newGroups = [...groups];
-    newGroups[groupIndex] = {
-      ...newGroups[groupIndex],
-      conditions: newGroups[groupIndex].conditions.map(condition => {
-        if (condition.orGroup === orGroupId) {
-          return { ...condition, orGroup: null };
-        }
-        return condition;
-      })
-    };
+    newGroups[groupIndex].conditions = conditions;
     onChange(newGroups);
   };
 
@@ -196,41 +162,31 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
                 onChange={(e) => updateGroupDescription(groupIndex, e.target.value)}
               />
 
-              {/* Group by OR button */}
-              {selectedConditions[groupIndex]?.size >= 2 && (
-                <Button
-                  type="button"
-                  onClick={() => groupSelectedConditions(groupIndex)}
-                  variant="outline"
-                  size="sm"
-                  className="mb-4"
-                >
-                  <Link2 className="mr-2 h-4 w-4" />
-                  Group Selected with OR
-                </Button>
-              )}
+              {group.conditions.map((condition, conditionIndex) => (
+                <div key={conditionIndex}>
+                  {conditionIndex > 0 && (
+                    <div className="flex justify-center my-2">
+                      <Select
+                        value={condition.orGroup !== null ? 'or' : 'and'}
+                        onValueChange={(value) => {
+                          const newOrGroup = value === 'or' ? 
+                            (group.conditions[conditionIndex - 1]?.orGroup ?? conditionIndex) : 
+                            null;
+                          updateCondition(groupIndex, conditionIndex, 'orGroup', newOrGroup);
+                        }}
+                      >
+                        <SelectTrigger className="w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="and">AND</SelectItem>
+                          <SelectItem value="or">OR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
-              {group.conditions.map((condition, conditionIndex) => {
-                const isSelected = selectedConditions[groupIndex]?.has(conditionIndex);
-                const orGroupId = condition.orGroup;
-
-                return (
-                  <div
-                    key={conditionIndex}
-                    className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${
-                      isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                    } ${orGroupId !== null ? 'border-l-4 border-blue-500 pl-4' : ''}`}
-                  >
-                    <Button
-                      type="button"
-                      variant={isSelected ? "secondary" : "ghost"}
-                      size="sm"
-                      onClick={() => toggleConditionSelection(groupIndex, conditionIndex)}
-                      className="w-8 h-8 p-0"
-                    >
-                      {isSelected ? '✓' : '○'}
-                    </Button>
-
+                  <div className="flex items-center space-x-2">
                     <Select
                       value={condition.parameter}
                       onValueChange={(value) =>
@@ -275,37 +231,17 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
                       }
                     />
 
-                    <div className="flex gap-2">
-                      {orGroupId !== null && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => ungroupConditions(groupIndex, orGroupId)}
-                          className="px-2"
-                        >
-                          <Link2Off className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeCondition(groupIndex, conditionIndex)}
-                        className="px-2"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    {orGroupId !== null && (
-                      <Badge variant="secondary" className="ml-2">
-                        OR Group {orGroupId}
-                      </Badge>
-                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeCondition(groupIndex, conditionIndex)}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
                   </div>
-                );
-              })}
+                </div>
+              ))}
 
               <div className="space-y-2">
                 <Button
