@@ -164,14 +164,14 @@ export function registerRoutes(app: Express): Server {
           (rule.opportunitySource === 'Any' || rule.opportunitySource === validation.opportunitySource) &&
           (!rule.validUntil || new Date(rule.validUntil) > new Date());
 
-        // Year comparison logic
+        // Year comparison logic based on the comparison operator
         let yearMatch = true;
         if (validation.yearComparison === '=') {
-          yearMatch = validation.makeYear === rule.makeYear; //Fixed comparison to rule.makeYear
+          yearMatch = validation.makeYear === rule.makeYear;
         } else if (validation.yearComparison === '>') {
-          yearMatch = validation.makeYear > rule.makeYear; //Fixed comparison to rule.makeYear
+          yearMatch = validation.makeYear > (rule.makeYear || 0);
         } else if (validation.yearComparison === '<') {
-          yearMatch = validation.makeYear < rule.makeYear; //Fixed comparison to rule.makeYear
+          yearMatch = validation.makeYear < (rule.makeYear || Number.MAX_SAFE_INTEGER);
         }
 
         return basicMatch && yearMatch;

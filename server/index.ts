@@ -7,6 +7,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Enhanced request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -39,19 +40,27 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
+    log("Starting server initialization...");
     const server = registerRoutes(app);
 
+    // Global error handler
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
+      log(`Error: ${message}`);
       res.status(status).json({ message });
       console.error('Server error:', err);
     });
 
+    // Setup Vite or static files based on environment
     if (app.get("env") === "development") {
+      log("Setting up Vite development server...");
       await setupVite(app, server);
+      log("Vite development server setup complete");
     } else {
+      log("Setting up static file serving...");
       serveStatic(app);
+      log("Static file serving setup complete");
     }
 
     // Add proper error handling for port binding
@@ -66,12 +75,14 @@ app.use((req, res, next) => {
       }
     });
 
+    // Start listening
     server.listen(PORT, "0.0.0.0", () => {
-      log(`Server running on port ${PORT}`);
+      log(`Server running on http://0.0.0.0:${PORT}`);
     });
 
     // Handle cleanup
     const cleanup = () => {
+      log('Starting server shutdown...');
       server.close(() => {
         log('Server shutdown complete');
         process.exit(0);
