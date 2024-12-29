@@ -73,11 +73,11 @@ export default function RuleBuilder() {
         ruleName: existingRule.ruleName,
         ruleType: existingRule.ruleType,
         validUntil: existingRule.validUntil
-          ? new Date(existingRule.validUntil).toISOString().slice(0, 16)
+          ? new Date(existingRule.validUntil).toISOString().split('T')[0]
           : null,
         status: existingRule.status,
         action: existingRule.action,
-        actionMessage: existingRule.actionMessage ?? '',
+        actionMessage: existingRule.actionMessage || '',
         customer: existingRule.customer,
         country: existingRule.country,
         opportunitySource: existingRule.opportunitySource,
@@ -85,16 +85,17 @@ export default function RuleBuilder() {
         lastModifiedBy: existingRule.lastModifiedBy,
       });
 
-      setConditionGroups(
-        existingRule.conditionGroups?.map(group => ({
-          description: group.description ?? '',
+      if (existingRule.conditionGroups) {
+        const groups: ConditionGroup[] = existingRule.conditionGroups.map(group => ({
+          description: group.description || '',
           conditions: group.conditions.map(condition => ({
             parameter: condition.parameter,
             operator: condition.operator,
             value: condition.value
           }))
-        })) || []
-      );
+        }));
+        setConditionGroups(groups);
+      }
     }
   }, [existingRule, form]);
 
@@ -135,17 +136,16 @@ export default function RuleBuilder() {
         return;
       }
 
+      // Delete existing condition groups
       await api.deleteRuleConditionGroups(Number(id));
 
+      // Create new condition group
       const newGroup = await api.createConditionGroup(Number(id), {
         description: group.description
       });
 
+      // Create conditions for the group
       for (const condition of group.conditions) {
-        if (!condition.parameter || !condition.operator || !condition.value) {
-          continue;
-        }
-
         await api.createCondition(newGroup.conditionGroupId, {
           parameter: condition.parameter,
           operator: condition.operator,
@@ -178,34 +178,9 @@ export default function RuleBuilder() {
 
       if (id) {
         await api.updateRule(Number(id), ruleData);
-
-        try {
-          await api.deleteRuleConditionGroups(Number(id));
-          for (const group of conditionGroups) {
-            if (!group.description) continue;
-
-            const newGroup = await api.createConditionGroup(Number(id), {
-              description: group.description
-            });
-
-            for (const condition of group.conditions) {
-              if (!condition.parameter || !condition.operator || !condition.value) continue;
-              await api.createCondition(newGroup.conditionGroupId, condition);
-            }
-          }
-        } catch (groupError) {
-          console.error('Error saving condition groups:', groupError);
-          toast({
-            title: "Warning",
-            description: "Rule saved but there was an error saving condition groups",
-            variant: "destructive",
-          });
-          return;
-        }
-
         toast({
           title: "Success",
-          description: "Rule and conditions updated successfully",
+          description: "Rule updated successfully",
         });
       } else {
         const newRule = await api.createRule(ruleData);
@@ -240,6 +215,7 @@ export default function RuleBuilder() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Basic rule information */}
               <FormField
                 control={form.control}
                 name="ruleName"
@@ -253,7 +229,6 @@ export default function RuleBuilder() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="ruleType"
@@ -275,7 +250,6 @@ export default function RuleBuilder() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="validUntil"
@@ -293,7 +267,6 @@ export default function RuleBuilder() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="status"
@@ -316,7 +289,6 @@ export default function RuleBuilder() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="action"
@@ -339,7 +311,6 @@ export default function RuleBuilder() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="actionMessage"
@@ -350,13 +321,13 @@ export default function RuleBuilder() {
                       <Textarea
                         {...field}
                         placeholder="Enter detailed message for this action"
+                        value={field.value || ''}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="customer"
@@ -379,7 +350,6 @@ export default function RuleBuilder() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="country"
@@ -403,7 +373,6 @@ export default function RuleBuilder() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="opportunitySource"
@@ -427,7 +396,6 @@ export default function RuleBuilder() {
                   </FormItem>
                 )}
               />
-
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Conditions</h3>
                 <ConditionBuilder
@@ -437,7 +405,6 @@ export default function RuleBuilder() {
                   isEditing={!!id}
                 />
               </div>
-
               <div className="flex justify-end gap-4">
                 <Button variant="outline" type="button" onClick={() => navigate("/")}>
                   Cancel
