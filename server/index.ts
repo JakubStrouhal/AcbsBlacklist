@@ -67,8 +67,8 @@ app.use((req, res, next) => {
       log("Static file serving setup complete");
     }
 
-    // Start listening
-    const PORT = 80;
+    // Start listening on port 5000 as specified in guidelines
+    const PORT = 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on http://0.0.0.0:${PORT}`);
     });

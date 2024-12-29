@@ -52,7 +52,7 @@ export const conditions = pgTable('conditions', {
   parameter: varchar('parameter', { length: 50 }).notNull(),
   operator: operatorEnum('operator').notNull(),
   value: varchar('value', { length: 255 }).notNull(),
-  orGroup: integer('or_group').default(null)
+  orGroup: integer('or_group')
 });
 
 // Relations
