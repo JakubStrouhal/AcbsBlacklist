@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { ruleValidationSchema, operatorEnum, type Rule } from "@db/schema";
 import { ConditionBuilder } from "@/components/ConditionBuilder";
+import React from 'react';
 
 interface ConditionGroup {
   description: string;
@@ -22,9 +23,19 @@ interface ConditionGroup {
   }>;
 }
 
-type FormData = Omit<Rule, 'ruleId' | 'lastModifiedDate'> & {
-  validUntil: string | undefined;
-  conditionGroups?: ConditionGroup[];
+type FormData = {
+  ruleName: string;
+  ruleType: 'Global' | 'Local';
+  validUntil: string | null;
+  status: 'Active' | 'Inactive' | 'Draft';
+  action: 'POZVI - NESLIBUJ' | 'POZVI SWAPEM - NESLIBUJ' | 'NEZVI - NECHCEME';
+  actionMessage: string;
+  customer: 'Private' | 'Company' | 'Any';
+  country: 'CZ' | 'SK' | 'PL' | 'Any';
+  opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
+  createdBy: number;
+  lastModifiedBy: number;
+  conditionGroups: ConditionGroup[];
 };
 
 export default function RuleBuilder() {
@@ -33,7 +44,7 @@ export default function RuleBuilder() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: existingRule } = useQuery({
+  const { data: existingRule, isLoading } = useQuery({
     queryKey: ['rules', id],
     queryFn: () => api.getRule(Number(id)),
     enabled: !!id
@@ -42,42 +53,61 @@ export default function RuleBuilder() {
   const form = useForm<FormData>({
     resolver: zodResolver(ruleValidationSchema),
     defaultValues: {
-      ruleName: existingRule?.ruleName || '',
-      ruleType: existingRule?.ruleType || 'Global',
-      validUntil: existingRule?.validUntil
-        ? new Date(existingRule.validUntil).toISOString().slice(0, 16)
-        : undefined,
-      status: existingRule?.status || 'Draft',
-      action: existingRule?.action || 'POZVI - NESLIBUJ',
-      actionMessage: existingRule?.actionMessage || '',
-      customer: existingRule?.customer || 'Any',
-      country: existingRule?.country || 'Any',
-      opportunitySource: existingRule?.opportunitySource || 'Any',
-      createdBy: existingRule?.createdBy || 1,
+      ruleName: '',
+      ruleType: 'Global',
+      validUntil: null,
+      status: 'Draft',
+      action: 'POZVI - NESLIBUJ',
+      actionMessage: '',
+      customer: 'Any',
+      country: 'Any',
+      opportunitySource: 'Any',
+      createdBy: 1,
       lastModifiedBy: 1,
-      conditionGroups: existingRule?.conditionGroups?.map(group => ({
-        description: group.description,
-        conditions: group.conditions.map(condition => ({
-          parameter: condition.parameter,
-          operator: condition.operator,
-          value: condition.value
-        }))
-      })) || []
+      conditionGroups: []
     }
   });
 
+  React.useEffect(() => {
+    if (existingRule) {
+      form.reset({
+        ...existingRule,
+        validUntil: existingRule.validUntil 
+          ? new Date(existingRule.validUntil).toISOString().slice(0, 16) 
+          : null,
+        conditionGroups: existingRule.conditionGroups?.map(group => ({
+          description: group.description || '',
+          conditions: group.conditions.map(condition => ({
+            parameter: condition.parameter,
+            operator: condition.operator as typeof operatorEnum.enumValues[number],
+            value: condition.value
+          }))
+        })) || []
+      });
+    }
+  }, [existingRule, form]);
+
   const handleConditionGroupsChange = (groups: ConditionGroup[]) => {
-    form.setValue('conditionGroups', groups, { shouldDirty: true });
+    form.setValue('conditionGroups', groups);
   };
 
   const saveConditionGroup = async (groupIndex: number) => {
     if (!id) return;
 
     try {
-      const groups = form.getValues('conditionGroups') || [];
+      const groups = form.getValues('conditionGroups');
       const group = groups[groupIndex];
 
-      if (!group || !group.description) {
+      if (!group) {
+        toast({
+          title: "Error",
+          description: "Group not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!group.description) {
         toast({
           title: "Error",
           description: "Group description is required",
@@ -86,12 +116,28 @@ export default function RuleBuilder() {
         return;
       }
 
+      if (!group.conditions.length) {
+        toast({
+          title: "Error",
+          description: "At least one condition is required",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Delete existing conditions for this group
+      await api.deleteRuleConditionGroups(Number(id));
+
+      // Create new group
       const newGroup = await api.createConditionGroup(Number(id), {
         description: group.description
       });
 
+      // Add all conditions
       for (const condition of group.conditions) {
-        if (!condition.parameter || !condition.operator || !condition.value) continue;
+        if (!condition.parameter || !condition.operator || !condition.value) {
+          continue;
+        }
 
         await api.createCondition(newGroup.conditionGroupId, {
           parameter: condition.parameter,
@@ -120,8 +166,7 @@ export default function RuleBuilder() {
     try {
       const ruleData = {
         ...data,
-        validUntil: data.validUntil ? new Date(data.validUntil) : null,
-        lastModifiedDate: new Date()
+        validUntil: data.validUntil ? new Date(data.validUntil) : null
       };
 
       const { conditionGroups: _, ...ruleDataWithoutConditions } = ruleData;
@@ -140,6 +185,8 @@ export default function RuleBuilder() {
         });
         navigate(`/rules/${newRule.ruleId}`);
       }
+
+      queryClient.invalidateQueries({ queryKey: ['rules'] });
     } catch (error) {
       console.error('Error saving rule:', error);
       toast({
@@ -149,6 +196,10 @@ export default function RuleBuilder() {
       });
     }
   };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="container mx-auto py-6">
@@ -350,7 +401,7 @@ export default function RuleBuilder() {
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Conditions</h3>
                 <ConditionBuilder
-                  groups={form.watch('conditionGroups') || []}
+                  groups={form.watch('conditionGroups')}
                   onChange={handleConditionGroupsChange}
                   onSaveGroup={saveConditionGroup}
                   isEditing={!!id}

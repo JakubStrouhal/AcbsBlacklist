@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Minus, AlertCircle } from "lucide-react";
+import { Plus, Minus, AlertCircle, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { operatorEnum } from "@db/schema";
 
@@ -208,7 +208,7 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
                   </Button>
                 </div>
               ))}
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center pt-4 border-t">
                 <Button
                   variant="outline"
                   size="sm"
@@ -219,10 +219,10 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
                 {isEditing && onSaveGroup && (
                   <Button
                     type="button"
-                    variant="outline"
                     onClick={() => onSaveGroup(groupIndex)}
+                    className="bg-green-600 hover:bg-green-700 text-white"
                   >
-                    Save Conditions
+                    <Save className="mr-2 h-4 w-4" /> Save Conditions
                   </Button>
                 )}
               </div>
@@ -230,7 +230,7 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
           </CardContent>
         </Card>
       ))}
-      <Button onClick={addGroup}>
+      <Button onClick={addGroup} variant="outline" className="w-full">
         <Plus className="mr-2 h-4 w-4" /> Add Condition Group
       </Button>
     </div>

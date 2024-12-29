@@ -54,9 +54,20 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // Use a single port (5000) and handle errors appropriately
-    server.listen(5000, "0.0.0.0", () => {
-      log(`Server running on port 5000`);
+    // Add proper error handling for port binding
+    const PORT = 5000;
+    server.on('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Please free up the port and try again.`);
+        process.exit(1);
+      } else {
+        console.error('Server error:', error);
+        process.exit(1);
+      }
+    });
+
+    server.listen(PORT, "0.0.0.0", () => {
+      log(`Server running on port ${PORT}`);
     });
 
     // Handle cleanup
