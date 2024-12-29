@@ -20,8 +20,8 @@ const validateSchema = z.object({
   opportunitySource: z.enum(['Ticking', 'Webform', 'SMS', 'Any']),
   make: z.string().min(1, "Make is required"),
   model: z.string().optional(),
-  yearComparison: z.enum(['=', '>', '<']).optional().nullable(),
-  makeYear: z.number().min(1900).max(new Date().getFullYear() + 1).optional().nullable(),
+  yearComparison: z.enum(['=', '>', '<']).nullable(),
+  makeYear: z.number().min(1900).max(new Date().getFullYear() + 1).nullable(),
   fuelType: z.string().optional(),
   tachometer: z.number().min(0).optional(),
   engine: z.string().optional(),
@@ -291,8 +291,8 @@ export function ValidateRuleForm() {
                     <FormItem className="flex-shrink-0 w-24">
                       <FormLabel>Compare (Optional)</FormLabel>
                       <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value || ''}
+                        onValueChange={(value) => field.onChange(value || null)}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -300,7 +300,7 @@ export function ValidateRuleForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value={null}>None</SelectItem>
                           <SelectItem value="=">=</SelectItem>
                           <SelectItem value=">">&#62;</SelectItem>
                           <SelectItem value="<">&#60;</SelectItem>
@@ -321,7 +321,11 @@ export function ValidateRuleForm() {
                         <Input
                           type="number"
                           {...field}
-                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                          value={field.value ?? ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value ? Number(value) : null);
+                          }}
                           placeholder="Enter year"
                         />
                       </FormControl>
