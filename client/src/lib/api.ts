@@ -3,12 +3,15 @@ import type { Rule, ConditionGroup, Condition, operatorEnum } from '@db/schema';
 export interface ValidationRequest {
   ruleType: 'Global' | 'Local';
   country: 'CZ' | 'SK' | 'PL' | 'Any';
-  opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
   customer: 'Private' | 'Company' | 'Any';
-  yearComparison: '=' | '>' | '<';
-  makeYear: number;
+  opportunitySource: 'Ticking' | 'Webform' | 'SMS' | 'Any';
   make: string;
   model?: string;
+  yearComparison: '=' | '>' | '<';
+  makeYear: number;
+  fuelType: string;
+  tachometer: number;
+  engine: string;
   price: number;
 }
 
