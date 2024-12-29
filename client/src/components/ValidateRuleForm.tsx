@@ -20,8 +20,8 @@ const validateSchema = z.object({
   opportunitySource: z.enum(['Ticking', 'Webform', 'SMS', 'Any']),
   make: z.string().min(1, "Make is required"),
   model: z.string().optional(),
-  yearComparison: z.enum(['=', '>', '<']).optional(),
-  makeYear: z.number().min(1900).max(new Date().getFullYear() + 1).optional(),
+  yearComparison: z.enum(['=', '>', '<']).optional().nullable(),
+  makeYear: z.number().min(1900).max(new Date().getFullYear() + 1).optional().nullable(),
   fuelType: z.string().optional(),
   tachometer: z.number().min(0).optional(),
   engine: z.string().optional(),
@@ -74,15 +74,6 @@ export function ValidateRuleForm() {
     }
   });
 
-  const { data: yearComparisons } = useQuery({
-    queryKey: ['yearComparisons'],
-    queryFn: async () => {
-      const response = await fetch('/api/yearComparisons')
-      if (!response.ok) throw new Error('Failed to fetch year comparisons')
-      return response.json()
-    }
-  })
-
   const form = useForm<FormData>({
     resolver: zodResolver(validateSchema),
     defaultValues: {
@@ -90,10 +81,10 @@ export function ValidateRuleForm() {
       country: 'CZ',
       customer: 'Private',
       opportunitySource: 'Webform',
-      yearComparison: '=',
-      makeYear: new Date().getFullYear(),
       make: '',
       model: '',
+      yearComparison: null,
+      makeYear: null,
       fuelType: '',
       tachometer: 0,
       engine: '',
@@ -234,13 +225,13 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Make</FormLabel>
-                    <Select
+                    <Select 
                       onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedMakeId(value);
                         // Reset model when make changes
                         form.setValue('model', '');
-                      }}
+                      }} 
                       value={field.value}
                     >
                       <FormControl>
@@ -268,8 +259,8 @@ export function ValidateRuleForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Model (Optional)</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
+                    <Select 
+                      onValueChange={field.onChange} 
                       value={field.value}
                       disabled={!selectedMakeId}
                     >
@@ -298,14 +289,18 @@ export function ValidateRuleForm() {
                   name="yearComparison"
                   render={({ field }) => (
                     <FormItem className="flex-shrink-0 w-24">
-                      <FormLabel>Compare</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel>Compare (Optional)</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || ''}
+                      >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="=" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="">None</SelectItem>
                           <SelectItem value="=">=</SelectItem>
                           <SelectItem value=">">&#62;</SelectItem>
                           <SelectItem value="<">&#60;</SelectItem>
@@ -321,12 +316,12 @@ export function ValidateRuleForm() {
                   name="makeYear"
                   render={({ field }) => (
                     <FormItem className="flex-1">
-                      <FormLabel>Make Year</FormLabel>
+                      <FormLabel>Make Year (Optional)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
                           {...field}
-                          onChange={e => field.onChange(Number(e.target.value))}
+                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : null)}
                           placeholder="Enter year"
                         />
                       </FormControl>
