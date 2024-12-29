@@ -3,8 +3,15 @@ import { createServer, type Server } from "http";
 import { db } from "@db";
 import { rules, conditionGroups, conditions, auditLog } from "@db/schema";
 import { eq, and, gt, lt } from "drizzle-orm";
+import cors from 'cors';
 
 export function registerRoutes(app: Express): Server {
+  // Enable CORS for all routes
+  app.use(cors({
+    origin: true,
+    credentials: true
+  }));
+
   // Rules CRUD
   app.get("/api/rules", async (req, res) => {
     try {

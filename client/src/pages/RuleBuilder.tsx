@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { ruleValidationSchema, operatorEnum, type RuleWithConditions } from "@db/schema";
+import { ruleValidationSchema, operatorEnum } from "@db/schema";
 import { ConditionBuilder } from "@/components/ConditionBuilder";
+import { ArrowLeft } from "lucide-react";
 
 interface ConditionGroup {
   description: string;
@@ -208,6 +209,19 @@ export default function RuleBuilder() {
 
   return (
     <div className="container mx-auto py-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate("/")}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" /> Go Back
+          </Button>
+          <h1 className="text-2xl font-bold">ACBS Buying Rules</h1>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>{id ? 'Edit Rule' : 'Create New Rule'}</CardTitle>
@@ -409,7 +423,7 @@ export default function RuleBuilder() {
                 <Button variant="outline" type="button" onClick={() => navigate("/")}>
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
                   {id ? 'Update Rule' : 'Create Rule'}
                 </Button>
               </div>
