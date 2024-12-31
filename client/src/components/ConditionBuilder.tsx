@@ -115,7 +115,16 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
   const addGroup = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onChange([...groups, { description: '', conditions: [] }]);
+    // Add a new group with default business logic condition
+    onChange([...groups, { 
+      description: '', 
+      conditions: [{
+        parameter: 'make',  // Default to make as business logic
+        operator: '=' as typeof operatorEnum.enumValues[number],
+        value: '',
+        orGroup: null
+      }]
+    }]);
   };
 
   const removeGroup = (groupIndex: number) => {
@@ -189,15 +198,16 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
       // Update current condition
       currentCondition.orGroup = newOrGroup;
 
-      // If setting to OR (non-null), create or join an OR group
+      // If this is the first condition in the group, allow setting OR
+      if (conditionIndex === 0) {
+        currentCondition.orGroup = newOrGroup;
+      }
+
+      // If setting to OR (non-null), propagate to subsequent conditions
       if (newOrGroup !== null) {
-        // Update subsequent conditions that were part of the same OR group
+        // Update subsequent conditions to be part of the same OR group
         for (let i = conditionIndex + 1; i < conditions.length; i++) {
-          if (conditions[i].orGroup === currentCondition.orGroup) {
-            conditions[i].orGroup = newOrGroup;
-          } else {
-            break;
-          }
+          conditions[i].orGroup = newOrGroup;
         }
       }
     } else {

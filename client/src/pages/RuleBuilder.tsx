@@ -21,6 +21,7 @@ interface ConditionGroup {
     parameter: string;
     operator: typeof operatorEnum.enumValues[number];
     value: string;
+    orGroup?: boolean; // Added orGroup field
   }>;
 }
 
@@ -92,7 +93,8 @@ export default function RuleBuilder() {
           conditions: group.conditions.map(condition => ({
             parameter: condition.parameter,
             operator: condition.operator,
-            value: condition.value
+            value: condition.value,
+            orGroup: condition.orGroup //Adding orGroup
           }))
         }));
         setConditionGroups(groups);
@@ -150,7 +152,8 @@ export default function RuleBuilder() {
         await api.createCondition(newGroup.conditionGroupId, {
           parameter: condition.parameter,
           operator: condition.operator,
-          value: condition.value
+          value: condition.value,
+          orGroup: condition.orGroup //Adding orGroup
         });
       }
 
@@ -176,17 +179,46 @@ export default function RuleBuilder() {
         ...data,
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
         makeYear: null, 
-        lastModifiedDate: new Date(), 
+        lastModifiedDate: new Date(),
+        conditionGroups: conditionGroups.map(group => ({
+          description: group.description,
+          conditions: group.conditions.map(condition => ({
+            parameter: condition.parameter,
+            operator: condition.operator,
+            value: condition.value,
+            orGroup: condition.orGroup
+          }))
+        }))
       };
 
       if (id) {
         await api.updateRule(Number(id), ruleData);
+        // Save condition groups after rule update
+        for (let i = 0; i < conditionGroups.length; i++) {
+          await saveConditionGroup(i);
+        }
         toast({
           title: "Success",
           description: "Rule updated successfully",
         });
       } else {
         const newRule = await api.createRule(ruleData);
+        // After creating the rule, create condition groups
+        for (const group of conditionGroups) {
+          const newGroup = await api.createConditionGroup(newRule.ruleId, {
+            description: group.description
+          });
+
+          // Create conditions for the group
+          for (const condition of group.conditions) {
+            await api.createCondition(newGroup.conditionGroupId, {
+              parameter: condition.parameter,
+              operator: condition.operator,
+              value: condition.value,
+              orGroup: condition.orGroup
+            });
+          }
+        }
         toast({
           title: "Success",
           description: "Rule created successfully",
