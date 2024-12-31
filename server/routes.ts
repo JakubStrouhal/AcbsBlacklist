@@ -189,6 +189,28 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add delete endpoint for rules
+  app.delete("/api/rules/:id", async (req, res) => {
+    try {
+      const ruleId = parseInt(req.params.id);
+
+      // Delete all related condition groups and conditions (cascade delete will handle this)
+      const [deletedRule] = await db
+        .delete(rules)
+        .where(eq(rules.ruleId, ruleId))
+        .returning();
+
+      if (!deletedRule) {
+        return res.status(404).json({ error: "Rule not found" });
+      }
+
+      res.json({ message: "Rule deleted successfully", ruleId });
+    } catch (error) {
+      console.error('Error deleting rule:', error);
+      res.status(500).json({ error: "Failed to delete rule" });
+    }
+  });
+
   app.post("/api/rules", async (req, res) => {
     try {
       const newRule = {
