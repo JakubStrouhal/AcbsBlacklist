@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import RulesPage from "./pages/RulesPage";
 import RuleBuilder from "./pages/RuleBuilder";
 import ValidatePage from "./pages/ValidatePage";
+import DocsPage from "./pages/DocsPage";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/rules/new" component={RuleBuilder} />
         <Route path="/rules/:id" component={RuleBuilder} />
         <Route path="/validate" component={ValidatePage} />
+        <Route path="/docs" component={DocsPage} />
       </Switch>
       <Toaster />
     </>
