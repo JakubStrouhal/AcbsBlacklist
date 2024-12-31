@@ -11,7 +11,7 @@ const options = {
     },
     servers: [
       {
-        url: 'http://0.0.0.0:5000',
+        url: 'http://0.0.0.0:80',
         description: 'Development server',
       },
     ],
