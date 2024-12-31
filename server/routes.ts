@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
 import { rules, conditionGroups, conditions, auditLog, makes, models, fuelTypes, engineTypes } from "@db/schema";
-import { eq, and, gt, lt } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './swagger';
@@ -68,25 +68,14 @@ import { specs } from './swagger';
  */
 
 export function registerRoutes(app: Express): Server {
-  // Serve Swagger documentation
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
-    swaggerOptions: {
-      security: [{ ApiKeyAuth: [] }],
-      securityDefinitions: {
-        ApiKeyAuth: {
-          type: 'apiKey',
-          in: 'header',
-          name: 'X-API-Key',
-          description: 'API key for authentication'
-        }
-      }
-    }
-  }));
-  // Enable CORS
+  // Enable CORS with proper configuration
   app.use(cors({
     origin: true,
     credentials: true
   }));
+
+  // Serve Swagger documentation
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
   // Vehicle data endpoints
   app.get("/api/vehicle/makes", async (req, res) => {
@@ -189,12 +178,12 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add delete endpoint for rules
+  // Delete rule endpoint with proper error handling
   app.delete("/api/rules/:id", async (req, res) => {
     try {
       const ruleId = parseInt(req.params.id);
 
-      // Delete all related condition groups and conditions (cascade delete will handle this)
+      // Delete conditions and condition groups first (cascade delete)
       const [deletedRule] = await db
         .delete(rules)
         .where(eq(rules.ruleId, ruleId))
@@ -264,8 +253,36 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-      if (!group) {
-        return res.status(500).json({ error: "Failed to create condition group" });
+      // Add conditions with OR support if provided
+      if (req.body.conditions && Array.isArray(req.body.conditions)) {
+        const orGroupMap = new Map();
+        let currentOrGroup = 1;
+
+        const conditionsToInsert = req.body.conditions.map(cond => {
+          let orGroup = null;
+
+          // If condition is part of an OR group, assign group number
+          if (cond.orEnabled) {
+            if (orGroupMap.has(cond.parameter)) {
+              orGroup = orGroupMap.get(cond.parameter);
+            } else {
+              orGroup = currentOrGroup++;
+              orGroupMap.set(cond.parameter, orGroup);
+            }
+          }
+
+          return {
+            conditionGroupId: group.conditionGroupId,
+            parameter: cond.parameter,
+            operator: cond.operator,
+            value: cond.value,
+            orGroup
+          };
+        });
+
+        if (conditionsToInsert.length > 0) {
+          await db.insert(conditions).values(conditionsToInsert);
+        }
       }
 
       res.status(201).json(group);

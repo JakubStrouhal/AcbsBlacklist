@@ -70,8 +70,8 @@ app.use((req, res, next) => {
       log("Static file serving setup complete");
     }
 
-    // Use port 80 or environment variable PORT
-    const PORT = process.env.PORT || 80;
+    // Use port 5000 or environment variable PORT
+    const PORT = parseInt(process.env.PORT || '5000', 10);
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on http://0.0.0.0:${PORT}`);
     });
