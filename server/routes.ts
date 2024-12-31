@@ -370,16 +370,25 @@ export function registerRoutes(app: Express): Server {
             if (groupConditions.length === 0) continue;
 
             // Group conditions by orGroup
-            const orGroups: Record<string, typeof groupConditions> = {};
-            for (const condition of groupConditions) {
-              const key = `${condition.orGroup ?? condition.conditionId}`;
-              if (!orGroups[key]) orGroups[key] = [];
-              orGroups[key].push(condition);
-            }
+            const orGroups = new Map<number | null, typeof groupConditions>();
 
-            // Check if any condition in each OR group matches
-            const groupMatches = Object.values(orGroups).every(orConditions =>
-              orConditions.some(condition => {
+            // Initialize with non-OR conditions (orGroup is null)
+            orGroups.set(null, groupConditions.filter(c => c.orGroup === null));
+
+            // Group OR conditions
+            groupConditions
+              .filter(c => c.orGroup !== null)
+              .forEach(c => {
+                if (!orGroups.has(c.orGroup)) {
+                  orGroups.set(c.orGroup, []);
+                }
+                orGroups.get(c.orGroup)!.push(c);
+              });
+
+            // For the group to match, all OR groups must have at least one matching condition
+            const groupMatches = Array.from(orGroups.values()).every(conditions => {
+              // Within each OR group, at least one condition must match
+              return conditions.some(condition => {
                 const value = validation[condition.parameter as keyof typeof validation];
                 console.log(`Checking condition:`, condition, 'with value:', value);
 
@@ -399,16 +408,20 @@ export function registerRoutes(app: Express): Server {
                   case '<=':
                     return Number(value) <= Number(condition.value);
                   case 'IN':
-                    const validValues = condition.value.split(',');
+                    const validValues = condition.value.split(',').map(v => v.trim());
                     return validValues.includes(value.toString());
                   case 'NOT IN':
-                    const invalidValues = condition.value.split(',');
+                    const invalidValues = condition.value.split(',').map(v => v.trim());
                     return !invalidValues.includes(value.toString());
+                  case 'BETWEEN':
+                    const [min, max] = condition.value.split(',').map(Number);
+                    const numValue = Number(value);
+                    return numValue >= min && numValue <= max;
                   default:
                     return false;
                 }
-              })
-            );
+              });
+            });
 
             if (!groupMatches) {
               allGroupsMatch = false;

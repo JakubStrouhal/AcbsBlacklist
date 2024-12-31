@@ -153,9 +153,16 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
     const newGroups = [...groups];
     const conditions = newGroups[groupIndex].conditions;
 
+    // Update orGroup for subsequent conditions
     if (conditionIndex < conditions.length - 1) {
-      conditions[conditionIndex + 1].orGroup = conditionIndex > 0 ? 
-        conditions[conditionIndex - 1].orGroup : null;
+      // If removing a condition that's part of an OR group, maintain the group for subsequent conditions
+      if (conditions[conditionIndex].orGroup !== null) {
+        const nextCondition = conditions[conditionIndex + 1];
+        if (nextCondition.orGroup === conditions[conditionIndex].orGroup) {
+          // Keep the OR group for the next condition if it's in the same group
+          nextCondition.orGroup = conditionIndex > 0 ? conditions[conditionIndex - 1].orGroup : null;
+        }
+      }
     }
 
     newGroups[groupIndex] = {
@@ -175,15 +182,22 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
     const conditions = newGroups[groupIndex].conditions;
 
     if (field === 'orGroup') {
-      conditions[conditionIndex] = {
-        ...conditions[conditionIndex],
-        orGroup: value as number | null
-      };
+      // When toggling OR group
+      const currentCondition = conditions[conditionIndex];
+      const newOrGroup = value as number | null;
 
-      if (value !== null) {
+      // Update current condition
+      currentCondition.orGroup = newOrGroup;
+
+      // If setting to OR (non-null), create or join an OR group
+      if (newOrGroup !== null) {
+        // Update subsequent conditions that were part of the same OR group
         for (let i = conditionIndex + 1; i < conditions.length; i++) {
-          if (conditions[i].orGroup !== conditions[i-1].orGroup) break;
-          conditions[i].orGroup = value as number;
+          if (conditions[i].orGroup === currentCondition.orGroup) {
+            conditions[i].orGroup = newOrGroup;
+          } else {
+            break;
+          }
         }
       }
     } else {
@@ -194,11 +208,10 @@ export function ConditionBuilder({ groups = [], onChange, onSaveGroup, isEditing
           : value
       };
 
-      // If parameter is 'make', store the makeId for model filtering
+      // Handle make/model relationship
       if (field === 'parameter' && value === 'make') {
-        setSelectedMakeId(null); // Reset selected make when changing parameter
+        setSelectedMakeId(null);
       }
-      // If parameter is 'make' and we're updating the value, store the makeId
       if (field === 'value' && conditions[conditionIndex].parameter === 'make') {
         setSelectedMakeId(value as string);
       }

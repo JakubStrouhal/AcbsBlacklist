@@ -89,15 +89,6 @@ export function ValidateRuleForm() {
     }
   });
 
-  const { data: years } = useQuery({
-    queryKey: ['years'],
-    queryFn: async () => {
-      const response = await fetch('/api/years');
-      if (!response.ok) throw new Error('Failed to fetch years');
-      return response.json();
-    }
-  })
-
   const form = useForm<FormData>({
     resolver: zodResolver(validateSchema),
     defaultValues: {
@@ -158,14 +149,20 @@ export function ValidateRuleForm() {
     }
   };
 
-  const FormTooltip = ({ description }: { description: string }) => (
-    <TooltipProvider>
+  const InfoTooltip = ({ description }: { description: string }) => (
+    <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <HelpCircle className="h-4 w-4 ml-2 inline-block text-muted-foreground" />
+          <Button 
+            variant="ghost" 
+            className="p-0 h-4 w-4 hover:bg-transparent"
+            type="button"
+          >
+            <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-primary" />
+          </Button>
         </TooltipTrigger>
-        <TooltipContent>
-          <p className="max-w-xs">{description}</p>
+        <TooltipContent className="bg-secondary text-secondary-foreground p-3 text-sm max-w-xs">
+          <p>{description}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -185,9 +182,9 @@ export function ValidateRuleForm() {
                 name="ruleType"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Rule Type</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.ruleType} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.ruleType} />
                     </div>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
@@ -209,9 +206,9 @@ export function ValidateRuleForm() {
                 name="country"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Country</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.country} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.country} />
                     </div>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
@@ -230,14 +227,16 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
+              {/* Similar pattern for other fields */}
+              {/* Customer Type */}
               <FormField
                 control={form.control}
                 name="customer"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Customer Type</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.customer} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.customer} />
                     </div>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
@@ -255,14 +254,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
+              {/* Opportunity Source */}
               <FormField
                 control={form.control}
                 name="opportunitySource"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Opportunity Source</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.opportunitySource} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.opportunitySource} />
                     </div>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
@@ -281,14 +281,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
+              {/* Make */}
               <FormField
                 control={form.control}
                 name="make"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Make</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.make} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.make} />
                     </div>
                     <Select
                       onValueChange={(value) => {
@@ -315,14 +316,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
+              {/* Model */}
               <FormField
                 control={form.control}
                 name="model"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Model (Optional)</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.model} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.model} />
                     </div>
                     <Select
                       onValueChange={field.onChange}
@@ -346,15 +348,16 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
+              {/* Year Comparison and Make Year */}
               <div className="flex gap-4 col-span-2">
                 <FormField
                   control={form.control}
                   name="yearComparison"
                   render={({ field }) => (
                     <FormItem className="flex-shrink-0 w-24">
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-2">
                         <FormLabel>Compare</FormLabel>
-                        <FormTooltip description={FIELD_DESCRIPTIONS.yearComparison} />
+                        <InfoTooltip description={FIELD_DESCRIPTIONS.yearComparison} />
                       </div>
                       <Select
                         onValueChange={(value: any) => field.onChange(value || null)}
@@ -380,9 +383,9 @@ export function ValidateRuleForm() {
                   name="makeYear"
                   render={({ field }) => (
                     <FormItem className="flex-1">
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-2">
                         <FormLabel>Make Year</FormLabel>
-                        <FormTooltip description={FIELD_DESCRIPTIONS.makeYear} />
+                        <InfoTooltip description={FIELD_DESCRIPTIONS.makeYear} />
                       </div>
                       <FormControl>
                         <Input
@@ -401,14 +404,15 @@ export function ValidateRuleForm() {
                   )}
                 />
               </div>
+              {/* Fuel Type */}
               <FormField
                 control={form.control}
                 name="fuelType"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Fuel Type</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.fuelType} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.fuelType} />
                     </div>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
@@ -428,14 +432,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
+              {/* Tachometer */}
               <FormField
                 control={form.control}
                 name="tachometer"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Tachometer</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.tachometer} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.tachometer} />
                     </div>
                     <FormControl>
                       <Input
@@ -449,14 +454,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
+              {/* Engine */}
               <FormField
                 control={form.control}
                 name="engine"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Engine</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.engine} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.engine} />
                     </div>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
@@ -476,14 +482,15 @@ export function ValidateRuleForm() {
                   </FormItem>
                 )}
               />
+              {/* Price */}
               <FormField
                 control={form.control}
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <FormLabel>Price</FormLabel>
-                      <FormTooltip description={FIELD_DESCRIPTIONS.price} />
+                      <InfoTooltip description={FIELD_DESCRIPTIONS.price} />
                     </div>
                     <FormControl>
                       <Input
